@@ -70,23 +70,30 @@ function parseHeapTimelineFromLines(lines) {
   state.heapGcMarkerValues = [];
   state.heapGcMarkerRawValues = [];
 
-  // Detect format by checking first valid line
+  // Detect format by checking first valid line (check up to first 20 lines)
   let isNewFormat = false;
+  let linesChecked = 0;
+  const maxLinesToCheck = 20;
   for (const line of lines) {
+    if (linesChecked >= maxLinesToCheck) break;
+    linesChecked++;
+
     const parts = line.split(",");
     if (parts.length === 2) {
       const first = parseFloat(parts[0]);
       const second = parseFloat(parts[1]);
-      // New format: timestamp,HeapBytes (timestamp is typically smaller than heap bytes)
-      // Old format: HeapBytes,marker (marker is "true" or "false")
+      // New format: timestamp,HeapBytes (both values are numeric)
+      // Old format: HeapBytes,marker (marker is "true" or "false", not a number)
       if (!isNaN(first) && !isNaN(second)) {
         // Both are numbers - new format
         isNewFormat = true;
+        break;
       } else if (!isNaN(first) && isNaN(second)) {
         // First is number, second is not - old format
         isNewFormat = false;
+        break;
       }
-      break;
+      // If both are NaN or first is NaN, skip to next line
     }
   }
 

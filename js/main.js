@@ -10,6 +10,7 @@ import * as Plot from "./plot.js";
 export const state = {
   gcPairs: [],
   heapValuesOriginal: [],
+  heapTimestamps: [],
   heapGcMarkers: [],
   heapGcMarkerValues: [],
   heapGcMarkerRawValues: [],
@@ -64,40 +65,109 @@ function parseMergedFile(content) {
 /* ===== Parse Heap Timeline (from lines list) ===== */
 function parseHeapTimelineFromLines(lines) {
   state.heapValuesOriginal = [];
+  state.heapTimestamps = [];
   state.heapGcMarkers = [];
   state.heapGcMarkerValues = [];
   state.heapGcMarkerRawValues = [];
+
+  // Detect format by checking first valid line
+  let isNewFormat = false;
+  for (const line of lines) {
+    const parts = line.split(",");
+    if (parts.length === 2) {
+      const first = parseFloat(parts[0]);
+      const second = parseFloat(parts[1]);
+      // New format: timestamp,HeapBytes (timestamp is typically smaller than heap bytes)
+      // Old format: HeapBytes,marker (marker is "true" or "false")
+      if (!isNaN(first) && !isNaN(second)) {
+        // Both are numbers - new format
+        isNewFormat = true;
+      } else if (!isNaN(first) && isNaN(second)) {
+        // First is number, second is not - old format
+        isNewFormat = false;
+      }
+      break;
+    }
+  }
 
   let min = Infinity,
     max = -Infinity;
   for (const line of lines) {
     const parts = line.split(",");
     if (parts.length !== 2) continue;
-    const v = parseFloat(parts[0]);
-    if (isNaN(v)) continue;
-    min = Math.min(min, v);
-    max = Math.max(max, v);
+    const heapBytes = isNewFormat
+      ? parseFloat(parts[1])
+      : parseFloat(parts[0]);
+    if (isNaN(heapBytes)) continue;
+    min = Math.min(min, heapBytes);
+    max = Math.max(max, heapBytes);
   }
   state.heapMarkerOffset = (max - min) * 0.0001;
 
   for (let i = 0; i < lines.length; i++) {
     const parts = lines[i].split(",");
     if (parts.length !== 2) continue;
-    const v = parseFloat(parts[0]);
-    const status = parts[1].trim().toLowerCase();
-    if (isNaN(v)) continue;
-    state.heapValuesOriginal.push(v);
-    if (status === "true") {
-      state.heapGcMarkers.push(i + 1);
-      state.heapGcMarkerRawValues.push(v);
-      state.heapGcMarkerValues.push(v + state.heapMarkerOffset);
+
+    if (isNewFormat) {
+      const timestamp = parseFloat(parts[0]);
+      const heapBytes = parseFloat(parts[1]);
+      if (isNaN(timestamp) || isNaN(heapBytes)) continue;
+      state.heapTimestamps.push(timestamp);
+      state.heapValuesOriginal.push(heapBytes);
+    } else {
+      const heapBytes = parseFloat(parts[0]);
+      const marker = parts[1].trim().toLowerCase();
+      if (isNaN(heapBytes)) continue;
+      state.heapTimestamps.push(null);
+      state.heapValuesOriginal.push(heapBytes);
+      if (marker === "true") {
+        state.heapGcMarkers.push(i + 1);
+        state.heapGcMarkerRawValues.push(heapBytes);
+        state.heapGcMarkerValues.push(heapBytes + state.heapMarkerOffset);
+      }
     }
+  }
+
+  // If new format, correlate GC events by timestamp
+  if (isNewFormat) {
+    correlateGCEventsByTimestamp();
   }
 
   // apply default downsampling using local DS functions
   applyDownsampling(state.lastAlgo, state.lastTarget);
   Plot.renderHeapPlot(state);
   buildCorrelationPanel();
+}
+
+/* ===== Correlate GC Events by Timestamp ===== */
+function correlateGCEventsByTimestamp() {
+  state.heapGcMarkers = [];
+  state.heapGcMarkerRawValues = [];
+  state.heapGcMarkerValues = [];
+
+  // Collect unique timestamps from GC pairs
+  const gcTimestamps = new Set();
+  for (const pair of state.gcPairs) {
+    if (pair.before.timestamp !== null) {
+      gcTimestamps.add(pair.before.timestamp);
+    }
+    if (pair.after.timestamp !== null) {
+      gcTimestamps.add(pair.after.timestamp);
+    }
+  }
+
+  // Find matching heap samples for each GC timestamp
+  for (let i = 0; i < state.heapTimestamps.length; i++) {
+    const timestamp = state.heapTimestamps[i];
+    if (timestamp !== null && gcTimestamps.has(timestamp)) {
+      const sampleIndex = i + 1; // Sample indices start at 1
+      state.heapGcMarkers.push(sampleIndex);
+      state.heapGcMarkerRawValues.push(state.heapValuesOriginal[i]);
+      state.heapGcMarkerValues.push(
+        state.heapValuesOriginal[i] + state.heapMarkerOffset,
+      );
+    }
+  }
 }
 
 /* ===== Downsampling orchestration (main keeps ds state) ===== */

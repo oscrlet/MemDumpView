@@ -5,12 +5,32 @@ export function parseGCDumpBlocks(text) {
   let blocks = [],
     current = null;
   for (const line of lines) {
-    const header = line.match(/-+(before|after) GC (\d+) -+/);
-    if (header) {
+    // Try new format first: -+(before|after) GC (\d+) @ (\d+) -+
+    const headerWithTimestamp = line.match(
+      /-+(before|after) GC (\d+) @ (\d+) -+/,
+    );
+    if (headerWithTimestamp) {
       if (current) blocks.push(current);
-      current = { type: header[1], idx: parseInt(header[2], 10), content: [] };
-    } else if (current && line.trim().length) {
-      current.content.push(line);
+      current = {
+        type: headerWithTimestamp[1],
+        idx: parseInt(headerWithTimestamp[2], 10),
+        timestamp: parseInt(headerWithTimestamp[3], 10),
+        content: [],
+      };
+    } else {
+      // Fall back to old format: -+(before|after) GC (\d+) -+
+      const header = line.match(/-+(before|after) GC (\d+) -+/);
+      if (header) {
+        if (current) blocks.push(current);
+        current = {
+          type: header[1],
+          idx: parseInt(header[2], 10),
+          timestamp: null,
+          content: [],
+        };
+      } else if (current && line.trim().length) {
+        current.content.push(line);
+      }
     }
   }
   if (current) blocks.push(current);

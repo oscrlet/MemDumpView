@@ -103,6 +103,10 @@ function parseHeapTimelineFromLines(lines) {
 }
 
 /* ===== Correlate GC Pairs with Heap Timeline using timestamps ===== */
+function getHeapMarkerValue(heapIndex) {
+  return state.heapValuesOriginal[heapIndex] + state.heapMarkerOffset;
+}
+
 function correlateGCPairsWithHeapTimeline() {
   state.heapGcMarkers = [];
   state.heapGcMarkerValues = [];
@@ -118,9 +122,10 @@ function correlateGCPairsWithHeapTimeline() {
     
     if (heapIndex !== -1) {
       const sampleIndex = heapIndex + 1; // sample indices start at 1
+      const heapValue = state.heapValuesOriginal[heapIndex];
       state.heapGcMarkers.push(sampleIndex);
-      state.heapGcMarkerRawValues.push(state.heapValuesOriginal[heapIndex]);
-      state.heapGcMarkerValues.push(state.heapValuesOriginal[heapIndex] + state.heapMarkerOffset);
+      state.heapGcMarkerRawValues.push(heapValue);
+      state.heapGcMarkerValues.push(getHeapMarkerValue(heapIndex));
     }
   }
 }
@@ -720,8 +725,7 @@ function highlightAndFocusHeapMarkerByTimestamp(timestamp) {
     // Create a temporary marker for highlighting
     if (!state.plotRendered) return;
     
-    const heapValue = state.heapValuesOriginal[heapIndex];
-    const markerValue = heapValue + state.heapMarkerOffset;
+    const markerValue = getHeapMarkerValue(heapIndex);
     
     // Add annotation to show this point
     const ann = {

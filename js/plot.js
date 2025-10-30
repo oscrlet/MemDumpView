@@ -3,6 +3,12 @@
 import { formatBytes } from "./utils.js";
 
 export function renderHeapPlot(state) {
+  // Check if Plotly is available
+  if (typeof Plotly === 'undefined') {
+    console.warn('Plotly is not loaded, skipping plot render');
+    return;
+  }
+  
   const xLine = state.dsActive
     ? state.dsCurrentX
     : Array.from({ length: state.heapValuesOriginal.length }, (_, i) => i + 1);

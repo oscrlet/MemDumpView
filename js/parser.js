@@ -8,9 +8,15 @@ export function parseGCDumpBlocks(text) {
     const header = line.match(/-+(before|after) GC (\d+) -+/);
     if (header) {
       if (current) blocks.push(current);
-      current = { type: header[1], idx: parseInt(header[2], 10), content: [] };
-    } else if (current && line.trim().length) {
-      current.content.push(line);
+      current = { type: header[1], idx: parseInt(header[2], 10), content: [], timestamp: null };
+    } else if (current) {
+      // Check for "Heap Dump at: <timestamp>" line
+      const timestampMatch = line.match(/^\s*Heap Dump at:\s*(.+)\s*$/i);
+      if (timestampMatch) {
+        current.timestamp = timestampMatch[1].trim();
+      } else if (line.trim().length) {
+        current.content.push(line);
+      }
     }
   }
   if (current) blocks.push(current);
@@ -31,6 +37,8 @@ export function pairBlocks(blocks) {
         idx: blocks[i].idx,
         before: blocks[i],
         after: blocks[i + 1],
+        beforeTimestamp: blocks[i].timestamp,
+        afterTimestamp: blocks[i + 1].timestamp,
       });
       i += 2;
     } else i++;

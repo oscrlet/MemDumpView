@@ -1,0 +1,31 @@
+phase1: heap use
+10000000,ts-1
+10120000,ts-2
+10250000,ts-3
+10300000,ts-4
+10200000,ts-5
+10100000,ts-6
+10050000,ts-7
+
+phase2: page dump
+-------before GC 1 -------
+Heap Dump at: ts-3
+nextFitPages: + (40%) - + (30%)
+singleObjectPages: + + - (20%) +
+16: + (60%) - + (40%)
+-------after GC 1 -------
+Heap Dump at: ts-3
+nextFitPages: + (35%) - +
+singleObjectPages: + - - +
+16: + + + (10%)
+
+-------before GC 2 -------
+Heap Dump at: ts-6
+nextFitPages: (90%) - + + +
+singleObjectPages: + + + + +
+16: (50%) - -
+-------after GC 2 -------
+Heap Dump at: ts-6
+nextFitPages: + + + +
+singleObjectPages: + + + +
+16: + + +

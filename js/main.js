@@ -10,6 +10,7 @@ import * as Plot from "./plot.js";
 export const state = {
   gcPairs: [],
   heapValuesOriginal: [],
+  heapTimestamps: [], // timestamps for each heap sample
   heapGcMarkers: [],
   heapGcMarkerValues: [],
   heapGcMarkerRawValues: [],
@@ -56,6 +57,10 @@ function parseMergedFile(content) {
   const gcDumpText = gcDumpLines.join("\n");
   const blocks = P.parseGCDumpBlocks(gcDumpText);
   state.gcPairs = P.pairBlocks(blocks);
+  
+  // Correlate GC timestamps with heap timeline timestamps
+  correlateGCWithHeapTimeline();
+  
   renderGCPairs();
 
   statusEl.innerHTML = `<span style='color:#2e7d32'>Loaded heap samples: ${state.heapValuesOriginal.length}, GC pairs: ${state.gcPairs.length}</span>`;
@@ -64,6 +69,7 @@ function parseMergedFile(content) {
 /* ===== Parse Heap Timeline (from lines list) ===== */
 function parseHeapTimelineFromLines(lines) {
   state.heapValuesOriginal = [];
+  state.heapTimestamps = [];
   state.heapGcMarkers = [];
   state.heapGcMarkerValues = [];
   state.heapGcMarkerRawValues = [];
@@ -84,18 +90,45 @@ function parseHeapTimelineFromLines(lines) {
     const parts = lines[i].split(",");
     if (parts.length !== 2) continue;
     const v = parseFloat(parts[0]);
-    const status = parts[1].trim().toLowerCase();
+    const timestamp = parts[1].trim();
     if (isNaN(v)) continue;
     state.heapValuesOriginal.push(v);
-    if (status === "true") {
-      state.heapGcMarkers.push(i + 1);
-      state.heapGcMarkerRawValues.push(v);
-      state.heapGcMarkerValues.push(v + state.heapMarkerOffset);
-    }
+    state.heapTimestamps.push(timestamp);
   }
 
+  // Markers will be populated later after GC pairs are parsed
   // apply default downsampling using local DS functions
   applyDownsampling(state.lastAlgo, state.lastTarget);
+  // Note: renderHeapPlot and buildCorrelationPanel will be called after GC correlation
+}
+
+/* ===== Correlate GC timestamps with heap timeline ===== */
+function correlateGCWithHeapTimeline() {
+  state.heapGcMarkers = [];
+  state.heapGcMarkerValues = [];
+  state.heapGcMarkerRawValues = [];
+  
+  // For each GC pair, find matching timestamps in heap timeline
+  for (const pair of state.gcPairs) {
+    // Try to match the "after" timestamp (or "before" if after is not available)
+    const targetTimestamp = pair.afterTimestamp || pair.beforeTimestamp;
+    
+    if (targetTimestamp) {
+      // Find the index in heap timeline with matching timestamp
+      const heapIndex = state.heapTimestamps.findIndex(ts => ts === targetTimestamp);
+      
+      if (heapIndex !== -1) {
+        const sampleIndex = heapIndex + 1; // samples are 1-indexed
+        const heapValue = state.heapValuesOriginal[heapIndex];
+        
+        state.heapGcMarkers.push(sampleIndex);
+        state.heapGcMarkerRawValues.push(heapValue);
+        state.heapGcMarkerValues.push(heapValue + state.heapMarkerOffset);
+      }
+    }
+  }
+  
+  // Re-render the plot with the new markers
   Plot.renderHeapPlot(state);
   buildCorrelationPanel();
 }
@@ -215,6 +248,19 @@ function renderGCPairs() {
     }
     if (simulatedValue != null) simMap.set(pair.idx, simulatedValue);
 
+    // Build timestamp display
+    let timestampHtml = "";
+    if (pair.beforeTimestamp || pair.afterTimestamp) {
+      timestampHtml = '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">';
+      if (pair.beforeTimestamp) {
+        timestampHtml += `<div>Before timestamp: <b>${U.escapeHtml(pair.beforeTimestamp)}</b></div>`;
+      }
+      if (pair.afterTimestamp) {
+        timestampHtml += `<div>After timestamp: <b>${U.escapeHtml(pair.afterTimestamp)}</b></div>`;
+      }
+      timestampHtml += '</div>';
+    }
+
     const summaryPanel = document.createElement("div");
     summaryPanel.className = "gc-summary-panel";
     summaryPanel.innerHTML = `
@@ -235,6 +281,7 @@ function renderGCPairs() {
       <div>Overall occupancy after: <b>${summary.occupancyAfter.toFixed(2)}%</b></div>
       <div>Occupancy change: <span class="${deltaClass}">${summary.deltaOccupancy > 0 ? "+" : ""}${summary.deltaOccupancy.toFixed(2)} pp</span></div>
       ${memEstimateHtml}
+      ${timestampHtml}
     `;
     wrapper.appendChild(summaryPanel);
 

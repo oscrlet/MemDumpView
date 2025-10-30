@@ -23,8 +23,8 @@
 - Check [heap dump file format](./docs/heap-dump-file-format.md) for input file rules
 - Click the "Load heap dump file" button in the page UI and select your heap dump file (.txt/.log/.csv).
 - The loader expects two phases in the file:
-  - phase1: heap use — lines are "HeapBytes,marker" e.g. "12345678,true"
-  - phase2: page dump — contains before/after GC blocks marked like "-------before GC 1 -------" and "-------after GC 1 -------"
+  - phase1: heap use — lines are "HeapBytes,timestamp" e.g. "12345678,2024-01-15T10:30:45.123Z"
+  - phase2: page dump — contains before/after GC blocks marked like "-------before GC 1 -------" and "-------after GC 1 -------", with "Heap Dump at: <timestamp>" lines to correlate with the heap timeline
 - After loading, the timeline (Plotly) and GC pair panels will populate automatically.
 
 3. Interact with the UI

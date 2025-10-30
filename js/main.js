@@ -10,7 +10,8 @@ import * as Plot from "./plot.js";
 export const state = {
   gcPairs: [],
   heapValuesOriginal: [],
-  heapGcMarkers: [],
+  heapTimestamps: [], // timestamps from heap-use lines
+  heapGcMarkers: [], // sample indices where GC events occurred
   heapGcMarkerValues: [],
   heapGcMarkerRawValues: [],
   heapMarkerOffset: 0,
@@ -56,6 +57,10 @@ function parseMergedFile(content) {
   const gcDumpText = gcDumpLines.join("\n");
   const blocks = P.parseGCDumpBlocks(gcDumpText);
   state.gcPairs = P.pairBlocks(blocks);
+  
+  // Correlate GC pairs with heap timeline using timestamps
+  correlateGCPairsWithHeapTimeline();
+  
   renderGCPairs();
 
   statusEl.innerHTML = `<span style='color:#2e7d32'>Loaded heap samples: ${state.heapValuesOriginal.length}, GC pairs: ${state.gcPairs.length}</span>`;
@@ -64,6 +69,7 @@ function parseMergedFile(content) {
 /* ===== Parse Heap Timeline (from lines list) ===== */
 function parseHeapTimelineFromLines(lines) {
   state.heapValuesOriginal = [];
+  state.heapTimestamps = [];
   state.heapGcMarkers = [];
   state.heapGcMarkerValues = [];
   state.heapGcMarkerRawValues = [];
@@ -84,20 +90,39 @@ function parseHeapTimelineFromLines(lines) {
     const parts = lines[i].split(",");
     if (parts.length !== 2) continue;
     const v = parseFloat(parts[0]);
-    const status = parts[1].trim().toLowerCase();
+    const timestamp = parts[1].trim();
     if (isNaN(v)) continue;
     state.heapValuesOriginal.push(v);
-    if (status === "true") {
-      state.heapGcMarkers.push(i + 1);
-      state.heapGcMarkerRawValues.push(v);
-      state.heapGcMarkerValues.push(v + state.heapMarkerOffset);
-    }
+    state.heapTimestamps.push(timestamp);
   }
 
   // apply default downsampling using local DS functions
   applyDownsampling(state.lastAlgo, state.lastTarget);
   Plot.renderHeapPlot(state);
   buildCorrelationPanel();
+}
+
+/* ===== Correlate GC Pairs with Heap Timeline using timestamps ===== */
+function correlateGCPairsWithHeapTimeline() {
+  state.heapGcMarkers = [];
+  state.heapGcMarkerValues = [];
+  state.heapGcMarkerRawValues = [];
+  
+  // For each GC pair, find matching timestamps in heap timeline
+  // We'll use the "before" timestamp to mark the GC event on the heap timeline
+  for (const pair of state.gcPairs) {
+    if (!pair.beforeTimestamp) continue;
+    
+    // Find the heap timeline index with matching timestamp
+    const heapIndex = state.heapTimestamps.findIndex(ts => ts === pair.beforeTimestamp);
+    
+    if (heapIndex !== -1) {
+      const sampleIndex = heapIndex + 1; // sample indices start at 1
+      state.heapGcMarkers.push(sampleIndex);
+      state.heapGcMarkerRawValues.push(state.heapValuesOriginal[heapIndex]);
+      state.heapGcMarkerValues.push(state.heapValuesOriginal[heapIndex] + state.heapMarkerOffset);
+    }
+  }
 }
 
 /* ===== Downsampling orchestration (main keeps ds state) ===== */
@@ -242,13 +267,21 @@ function renderGCPairs() {
     originalRow.className = "gc-squares-row";
     const beforePanel = document.createElement("div");
     beforePanel.className = "gc-sq-panel";
-    beforePanel.innerHTML = `<div class="gc-sq-title">Before GC ${pair.idx}</div>`;
+    beforePanel.innerHTML = `
+      <div class="gc-sq-title">
+        Before GC ${pair.idx}
+        <button class="gc-btn gc-btn-small before-jump-btn" title="Jump to before GC on timeline">↑ Timeline</button>
+      </div>`;
     beforePanel.appendChild(
       renderSquareGrid(beforeDist, allKeys, "before", pair.idx, unifiedSize),
     );
     const afterPanel = document.createElement("div");
     afterPanel.className = "gc-sq-panel";
-    afterPanel.innerHTML = `<div class="gc-sq-title">After GC ${pair.idx}</div>`;
+    afterPanel.innerHTML = `
+      <div class="gc-sq-title">
+        After GC ${pair.idx}
+        <button class="gc-btn gc-btn-small after-jump-btn" title="Jump to after GC on timeline">↑ Timeline</button>
+      </div>`;
     afterPanel.appendChild(
       renderSquareGrid(afterDist, allKeys, "after", pair.idx, unifiedSize),
     );
@@ -302,6 +335,22 @@ function renderGCPairs() {
       manualZoom(wrapper, -2);
     summaryPanel.querySelector(".zoom-reset-btn").onclick = () =>
       resetZoom(wrapper);
+    
+    // Add event handlers for before/after jump buttons
+    const beforeJumpBtn = beforePanel.querySelector(".before-jump-btn");
+    const afterJumpBtn = afterPanel.querySelector(".after-jump-btn");
+    if (beforeJumpBtn) {
+      beforeJumpBtn.onclick = () => {
+        highlightAndFocusHeapMarkerByTimestamp(pair.beforeTimestamp);
+        Plot.jumpToHeapTimeline();
+      };
+    }
+    if (afterJumpBtn) {
+      afterJumpBtn.onclick = () => {
+        highlightAndFocusHeapMarkerByTimestamp(pair.afterTimestamp);
+        Plot.jumpToHeapTimeline();
+      };
+    }
   }
 
   const sortedIndices = state.gcPairs.map((p) => p.idx).sort((a, b) => a - b);
@@ -655,6 +704,41 @@ function scrollToGCPair(idx) {
       setTimeout(() => (w.style.outline = ""), 1600);
       break;
     }
+  }
+}
+
+/* ===== Highlight heap marker by timestamp ===== */
+function highlightAndFocusHeapMarkerByTimestamp(timestamp) {
+  if (!timestamp) return;
+  
+  // Find the heap timeline index with matching timestamp
+  const heapIndex = state.heapTimestamps.findIndex(ts => ts === timestamp);
+  
+  if (heapIndex !== -1) {
+    const sampleIndex = heapIndex + 1; // sample indices start at 1
+    
+    // Create a temporary marker for highlighting
+    if (!state.plotRendered) return;
+    
+    const heapValue = state.heapValuesOriginal[heapIndex];
+    const markerValue = heapValue + state.heapMarkerOffset;
+    
+    // Add annotation to show this point
+    const ann = {
+      x: sampleIndex,
+      y: markerValue,
+      text: `Heap @ ${timestamp}`,
+      showarrow: true,
+      arrowhead: 7,
+      ax: 0,
+      ay: -40,
+      bgcolor: "#ff9800",
+      font: { color: "#fff", size: 10 },
+    };
+    Plotly.relayout("heap-chart", { annotations: [ann] });
+    
+    // Focus on this point
+    Plot.focusOnHeapMarker(state, sampleIndex);
   }
 }
 

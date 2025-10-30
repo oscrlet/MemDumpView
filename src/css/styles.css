@@ -85,6 +85,11 @@ h2 {
 .gc-btn:hover {
   background: #e3f2fd;
 }
+.gc-btn-small {
+  padding: 3px 6px;
+  font-size: 0.65em;
+  margin-left: 8px;
+}
 .delta-pos {
   color: #2e7d32;
   font-weight: bold;

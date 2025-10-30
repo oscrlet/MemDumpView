@@ -43,6 +43,7 @@ Important notes
   - Format: `Heap Dump at: <timestamp>`
   - Example: `Heap Dump at: 2024-10-30T10:15:30.123Z`
   - This timestamp is used to match against the timestamps in the heap timeline to locate the exact position for correlation
+  - Note: Both "before" and "after" blocks for the same GC event typically have the same timestamp, as they represent the state immediately before and after the GC operation at a single point in time
 - The parser collects non-empty lines after the header (and optional timestamp line) into that block's `content` until the next header.
 - After headers and their content are collected, the loader pairs adjacent blocks if they are `before` followed immediately by `after` and have the same GC index number.
 

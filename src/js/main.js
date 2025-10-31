@@ -72,8 +72,8 @@ function parseHeapTimelineFromLines(lines) {
     max = -Infinity;
   for (const line of lines) {
     const parts = line.split(",");
-    if (parts.length !== 2) continue;
-    const v = parseFloat(parts[0]);
+    if (parts.length !== 3) continue;
+    const v = parseFloat(parts[1]);
     if (isNaN(v)) continue;
     min = Math.min(min, v);
     max = Math.max(max, v);
@@ -82,13 +82,14 @@ function parseHeapTimelineFromLines(lines) {
 
   for (let i = 0; i < lines.length; i++) {
     const parts = lines[i].split(",");
-    if (parts.length !== 2) continue;
-    const v = parseFloat(parts[0]);
-    const status = parts[1].trim().toLowerCase();
-    if (isNaN(v)) continue;
+    if (parts.length !== 3) continue;
+    const sampleIdx = parseInt(parts[0], 10);
+    const v = parseFloat(parts[1]);
+    const status = parts[2].trim().toLowerCase();
+    if (isNaN(sampleIdx) || isNaN(v)) continue;
     state.heapValuesOriginal.push(v);
     if (status === "true") {
-      state.heapGcMarkers.push(i + 1);
+      state.heapGcMarkers.push(sampleIdx);
       state.heapGcMarkerRawValues.push(v);
       state.heapGcMarkerValues.push(v + state.heapMarkerOffset);
     }

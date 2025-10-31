@@ -25,13 +25,14 @@ Important notes
      - Contains multiple GC blocks (before/after) with headers and page usage lines
 
 2) Phase 1 — heap timeline line format
-- Each valid line in this section must be two comma-separated values:
-  - <heap-bytes>,<marker-flag>
+- Each valid line in this section must be three comma-separated values:
+  - <sample>,<heap-bytes>,<marker-flag>
 - Examples:
-  - `12345678,true`
-  - `9876543,false`
-  - `12345.67,false` (floats allowed)
+  - `1,12345678,true`
+  - `2,9876543,false`
+  - `3,12345.67,false` (floats allowed)
 - Interpretation:
+  - sample — numeric sample index (integer, starting from 1)
   - heap-bytes — numeric value representing heap size in bytes at that sample
   - marker-flag — `true` or `false` (case-insensitive). A `true` value marks this sample as a GC marker and will be correlated with GC before/after blocks.
 
@@ -71,13 +72,13 @@ Important notes
 
 ```text
 phase1: heap use
-10000000,false
-10120000,false
-10250000,true
-10300000,false
-10200000,false
-10100000,true
-10050000,false
+1,10000000,false
+2,10120000,false
+3,10250000,true
+4,10300000,false
+5,10200000,false
+6,10100000,true
+7,10050000,false
 
 phase2: page dump
 -------before GC 1 -------

@@ -3,6 +3,13 @@
 import { formatBytes } from "./utils.js";
 
 export function renderHeapPlot(state) {
+  // Check if Plotly is available
+  if (typeof Plotly === 'undefined') {
+    console.warn('Plotly is not loaded. Skipping plot rendering.');
+    state.plotRendered = false;
+    return;
+  }
+  
   const xLine = state.dsActive
     ? state.dsCurrentX
     : state.heapTimestamps;
@@ -85,7 +92,7 @@ export function highlightHeapMarker(state, gcIdx) {
 }
 
 export function highlightHeapMarkerByPosition(state, pos) {
-  if (!state.plotRendered) return;
+  if (!state.plotRendered || typeof Plotly === 'undefined') return;
   const sizes = state.heapGcMarkers.map((_, i) => (i === pos ? 16 : 9));
   Plotly.restyle("heap-chart", { "marker.size": [sizes] }, 1);
   const ann = {
@@ -103,7 +110,7 @@ export function highlightHeapMarkerByPosition(state, pos) {
 }
 
 export function focusOnHeapMarker(state, timestamp) {
-  if (!state.plotRendered) return;
+  if (!state.plotRendered || typeof Plotly === 'undefined') return;
   const minTime = Math.min(...state.heapTimestamps);
   const maxTime = Math.max(...state.heapTimestamps);
   const totalRange = maxTime - minTime;

@@ -5,10 +5,15 @@ export function parseGCDumpBlocks(text) {
   let blocks = [],
     current = null;
   for (const line of lines) {
-    const header = line.match(/-+(before|after) GC (\d+) -+/);
+    const header = line.match(/-+(before|after) GC (\d+) @ ([\d.]+) -+/);
     if (header) {
       if (current) blocks.push(current);
-      current = { type: header[1], idx: parseInt(header[2], 10), content: [] };
+      current = { 
+        type: header[1], 
+        idx: parseInt(header[2], 10), 
+        timestamp: parseFloat(header[3]),
+        content: [] 
+      };
     } else if (current && line.trim().length) {
       current.content.push(line);
     }
@@ -29,6 +34,7 @@ export function pairBlocks(blocks) {
     ) {
       pairs.push({
         idx: blocks[i].idx,
+        timestamp: blocks[i].timestamp,
         before: blocks[i],
         after: blocks[i + 1],
       });

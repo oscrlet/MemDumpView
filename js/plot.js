@@ -5,7 +5,7 @@ import { formatBytes } from "./utils.js";
 export function renderHeapPlot(state) {
   const xLine = state.dsActive
     ? state.dsCurrentX
-    : Array.from({ length: state.heapValuesOriginal.length }, (_, i) => i + 1);
+    : state.heapTimestamps;
   const yLine = state.dsActive ? state.dsCurrentY : state.heapValuesOriginal;
 
   const actualTrace = {
@@ -32,8 +32,8 @@ export function renderHeapPlot(state) {
       line: { color: "#000", width: 1 },
     },
     text: state.heapGcMarkers.map(
-      (idx, i) =>
-        `GC event #${i + 1} @ sample ${idx}<br>Heap: ${state.heapGcMarkerRawValues[i]}`,
+      (timestamp, i) =>
+        `GC event #${i + 1} @ timestamp ${timestamp}<br>Heap: ${state.heapGcMarkerRawValues[i]}`,
     ),
     hoverinfo: "text",
   };
@@ -56,7 +56,7 @@ export function renderHeapPlot(state) {
       },
       text: state.simulatedCompactedY.map(
         (v, i) =>
-          `Simulated after GC#${i + 1} @ sample ${state.simulatedCompactedX[i]}<br>${formatBytes(v)}`,
+          `Simulated after GC#${i + 1} @ timestamp ${state.simulatedCompactedX[i]}<br>${formatBytes(v)}`,
       ),
       hoverinfo: "text",
     });
@@ -64,7 +64,7 @@ export function renderHeapPlot(state) {
 
   Plotly.newPlot("heap-chart", traces, {
     title: "Heap Usage Over Time",
-    xaxis: { title: "Sample Index" },
+    xaxis: { title: "Timestamp" },
     yaxis: { title: "Heap Bytes" },
     legend: { orientation: "h", x: 0, y: 1.05 },
   });
@@ -77,9 +77,10 @@ export function updateSimulatedLine(state) {
 
 export function highlightHeapMarker(state, gcIdx) {
   if (!state.plotRendered) return;
-  const sorted = state.gcPairs.map((p) => p.idx).sort((a, b) => a - b);
-  const pos = sorted.indexOf(gcIdx);
-  if (pos < 0 || pos >= state.heapGcMarkers.length) return;
+  const pair = state.gcPairs.find((p) => p.idx === gcIdx);
+  if (!pair) return;
+  const pos = state.heapGcMarkerTimestamps.indexOf(pair.timestamp);
+  if (pos < 0) return;
   highlightHeapMarkerByPosition(state, pos);
 }
 
@@ -101,29 +102,32 @@ export function highlightHeapMarkerByPosition(state, pos) {
   Plotly.relayout("heap-chart", { annotations: [ann] });
 }
 
-export function focusOnHeapMarker(state, sampleIndex) {
+export function focusOnHeapMarker(state, timestamp) {
   if (!state.plotRendered) return;
-  const total = state.heapValuesOriginal.length;
-  const windowSize = Math.max(50, Math.round(total * 0.05));
-  let start = sampleIndex - Math.floor(windowSize / 2);
-  let end = sampleIndex + Math.floor(windowSize / 2);
-  if (start < 1) {
-    end += 1 - start;
-    start = 1;
+  const minTime = Math.min(...state.heapTimestamps);
+  const maxTime = Math.max(...state.heapTimestamps);
+  const totalRange = maxTime - minTime;
+  const windowSize = Math.max(totalRange * 0.05, (maxTime - minTime) / 20);
+  let start = timestamp - windowSize / 2;
+  let end = timestamp + windowSize / 2;
+  if (start < minTime) {
+    end += minTime - start;
+    start = minTime;
   }
-  if (end > total) {
-    let diff = end - total;
-    start = Math.max(1, start - diff);
-    end = total;
+  if (end > maxTime) {
+    let diff = end - maxTime;
+    start = Math.max(minTime, start - diff);
+    end = maxTime;
   }
   Plotly.relayout("heap-chart", { "xaxis.range": [start, end] });
 }
 
 export function highlightAndFocusHeapMarker(state, gcIdx) {
   highlightHeapMarker(state, gcIdx);
-  const sorted = state.gcPairs.map((p) => p.idx).sort((a, b) => a - b);
-  const pos = sorted.indexOf(gcIdx);
-  if (pos < 0 || pos >= state.heapGcMarkers.length) return;
+  const pair = state.gcPairs.find((p) => p.idx === gcIdx);
+  if (!pair) return;
+  const pos = state.heapGcMarkerTimestamps.indexOf(pair.timestamp);
+  if (pos < 0) return;
   focusOnHeapMarker(state, state.heapGcMarkers[pos]);
 }
 

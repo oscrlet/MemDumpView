@@ -9,8 +9,10 @@ import * as Plot from "./plot.js";
 /* ===== State ===== */
 export const state = {
   gcPairs: [],
+  heapTimestamps: [],
   heapValuesOriginal: [],
   heapGcMarkers: [],
+  heapGcMarkerTimestamps: [],
   heapGcMarkerValues: [],
   heapGcMarkerRawValues: [],
   heapMarkerOffset: 0,
@@ -63,8 +65,10 @@ function parseMergedFile(content) {
 
 /* ===== Parse Heap Timeline (from lines list) ===== */
 function parseHeapTimelineFromLines(lines) {
+  state.heapTimestamps = [];
   state.heapValuesOriginal = [];
   state.heapGcMarkers = [];
+  state.heapGcMarkerTimestamps = [];
   state.heapGcMarkerValues = [];
   state.heapGcMarkerRawValues = [];
 
@@ -72,8 +76,8 @@ function parseHeapTimelineFromLines(lines) {
     max = -Infinity;
   for (const line of lines) {
     const parts = line.split(",");
-    if (parts.length !== 2) continue;
-    const v = parseFloat(parts[0]);
+    if (parts.length !== 3) continue;
+    const v = parseFloat(parts[1]);
     if (isNaN(v)) continue;
     min = Math.min(min, v);
     max = Math.max(max, v);
@@ -82,13 +86,16 @@ function parseHeapTimelineFromLines(lines) {
 
   for (let i = 0; i < lines.length; i++) {
     const parts = lines[i].split(",");
-    if (parts.length !== 2) continue;
-    const v = parseFloat(parts[0]);
-    const status = parts[1].trim().toLowerCase();
-    if (isNaN(v)) continue;
+    if (parts.length !== 3) continue;
+    const timestamp = parseFloat(parts[0]);
+    const v = parseFloat(parts[1]);
+    const status = parts[2].trim().toLowerCase();
+    if (isNaN(timestamp) || isNaN(v)) continue;
+    state.heapTimestamps.push(timestamp);
     state.heapValuesOriginal.push(v);
     if (status === "true") {
-      state.heapGcMarkers.push(i + 1);
+      state.heapGcMarkers.push(timestamp);
+      state.heapGcMarkerTimestamps.push(timestamp);
       state.heapGcMarkerRawValues.push(v);
       state.heapGcMarkerValues.push(v + state.heapMarkerOffset);
     }
@@ -105,12 +112,20 @@ function applyDownsampling(algo, target) {
   state.lastAlgo = algo;
   state.lastTarget = target;
   const n = state.heapValuesOriginal.length;
-  const xArr = Array.from({ length: n }, (_, i) => i + 1);
+  const xArr = state.heapTimestamps.slice();
   const forceSet = new Set(state.heapGcMarkers);
+  
+  // Create index set for forced preservation (convert timestamps to indices)
+  const forceIndices = new Set();
+  for (const markerTimestamp of state.heapGcMarkers) {
+    const idx = state.heapTimestamps.indexOf(markerTimestamp);
+    if (idx !== -1) forceIndices.add(idx);
+  }
+  
   let result =
     algo === "lttb"
-      ? DS.downsampleLTTB(xArr, state.heapValuesOriginal, target, forceSet)
-      : DS.downsampleBucket(xArr, state.heapValuesOriginal, target, forceSet);
+      ? DS.downsampleLTTB(xArr, state.heapValuesOriginal, target, forceIndices)
+      : DS.downsampleBucket(xArr, state.heapValuesOriginal, target, forceIndices);
   state.dsCurrentX = result.x;
   state.dsCurrentY = result.y;
   state.dsActive = true;
@@ -304,18 +319,16 @@ function renderGCPairs() {
       resetZoom(wrapper);
   }
 
-  const sortedIndices = state.gcPairs.map((p) => p.idx).sort((a, b) => a - b);
+  const sortedPairs = [...state.gcPairs].sort((a, b) => a.idx - b.idx);
   state.simulatedCompactedX = [];
   state.simulatedCompactedY = [];
-  for (
-    let pos = 0;
-    pos < state.heapGcMarkers.length && pos < sortedIndices.length;
-    pos++
-  ) {
-    const gcIdx = sortedIndices[pos];
-    if (simMap.has(gcIdx)) {
-      state.simulatedCompactedX.push(state.heapGcMarkers[pos]);
-      state.simulatedCompactedY.push(simMap.get(gcIdx));
+  for (const pair of sortedPairs) {
+    if (simMap.has(pair.idx)) {
+      const markerIdx = state.heapGcMarkerTimestamps.indexOf(pair.timestamp);
+      if (markerIdx !== -1) {
+        state.simulatedCompactedX.push(state.heapGcMarkers[markerIdx]);
+        state.simulatedCompactedY.push(simMap.get(pair.idx));
+      }
     }
   }
   state.haveSimulation = state.simulatedCompactedX.length > 0;
@@ -602,24 +615,26 @@ function buildCorrelationPanel() {
     return;
   }
   let html = "";
-  const gcIndices = state.gcPairs.map((p) => p.idx).sort((a, b) => a - b);
-  if (gcIndices.length && state.heapGcMarkers.length) {
-    gcIndices.forEach((idx, pos) => {
-      if (pos < state.heapGcMarkers.length) {
-        html += `<div class="corr-row" data-gc="${idx}">GC ${idx} <span class="inline-badge">heap@${state.heapGcMarkers[pos]}</span></div>`;
+  const gcPairsSorted = [...state.gcPairs].sort((a, b) => a.idx - b.idx);
+  
+  if (gcPairsSorted.length && state.heapGcMarkers.length) {
+    gcPairsSorted.forEach((pair) => {
+      const markerIdx = state.heapGcMarkerTimestamps.indexOf(pair.timestamp);
+      if (markerIdx !== -1) {
+        html += `<div class="corr-row" data-gc="${pair.idx}">GC ${pair.idx} <span class="inline-badge">@ timestamp ${pair.timestamp}</span></div>`;
       } else {
-        html += `<div class="corr-row" data-gc="${idx}">GC ${idx} <span class="inline-badge" style="background:#999">no marker</span></div>`;
+        html += `<div class="corr-row" data-gc="${pair.idx}">GC ${pair.idx} <span class="inline-badge" style="background:#999">no marker @ ${pair.timestamp}</span></div>`;
       }
     });
-  } else if (gcIndices.length) {
+  } else if (gcPairsSorted.length) {
     html += "<div><b>GC indices:</b></div>";
-    gcIndices.forEach((idx) => {
-      html += `<div class="corr-row" data-gc="${idx}">GC ${idx}</div>`;
+    gcPairsSorted.forEach((pair) => {
+      html += `<div class="corr-row" data-gc="${pair.idx}">GC ${pair.idx} @ ${pair.timestamp}</div>`;
     });
   } else {
     html += "<div><b>Heap GC markers:</b></div>";
-    state.heapGcMarkers.forEach((s, i) => {
-      html += `<div class="corr-row" data-marker="${i}">Marker ${i + 1} @ sample ${s}</div>`;
+    state.heapGcMarkers.forEach((timestamp, i) => {
+      html += `<div class="corr-row" data-marker="${i}">Marker ${i + 1} @ timestamp ${timestamp}</div>`;
     });
   }
   panel.innerHTML = html;
@@ -660,10 +675,11 @@ function scrollToGCPair(idx) {
 
 /* ===== Misc helpers that depended on old globals ===== */
 function getMemStatForGcIdx(gcIdx) {
-  const sorted = state.gcPairs.map((p) => p.idx).sort((a, b) => a - b);
-  const pos = sorted.indexOf(gcIdx);
-  if (pos === -1 || pos >= state.heapGcMarkerRawValues.length) return null;
-  return state.heapGcMarkerRawValues[pos];
+  const pair = state.gcPairs.find((p) => p.idx === gcIdx);
+  if (!pair) return null;
+  const markerIdx = state.heapGcMarkerTimestamps.indexOf(pair.timestamp);
+  if (markerIdx === -1) return null;
+  return state.heapGcMarkerRawValues[markerIdx];
 }
 
 /* ===== File Handler (Merged) wiring ===== */

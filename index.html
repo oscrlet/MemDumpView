@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MemDumpView v2.0</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <h1>MemDumpView v2.0</h1>
+      <p class="subtitle">Modern CSV Data Visualization</p>
+    </header>
+
+    <div class="app-container">
+      <!-- Sidebar for controls -->
+      <aside id="sidebar" class="sidebar">
+        <!-- Sidebar content will be injected by Sidebar component -->
+      </aside>
+
+      <!-- Main content area -->
+      <main class="main-content">
+        <!-- Drop overlay for drag & drop -->
+        <div id="drop-overlay" class="drop-overlay hidden">
+          <div class="drop-message">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <p>Drop CSV file here</p>
+          </div>
+        </div>
+
+        <!-- Chart container -->
+        <div id="chart-container" class="chart-container">
+          <!-- Chart will be rendered here -->
+        </div>
+
+        <!-- Pinned items list -->
+        <div id="pinned-container" class="pinned-container">
+          <!-- Pinned list will be rendered here -->
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

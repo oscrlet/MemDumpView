@@ -1,7 +1,8 @@
 {
-  "name": "heapview",
-  "version": "1.0.0",
-  "description": "Heap Dump Viewer",
+  "name": "memdumpview",
+  "version": "2.0.0",
+  "description": "Modern modularized CSV data visualization tool",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -14,6 +15,9 @@
     "eslint": "^x.x.x",
     "globals": "^x.x.x",
     "prettier": "^x.x.x",
-    "vite": "^x.x.x"
-  }
+    "vite": "^5.0.0"
+  },
+  "keywords": ["csv", "visualization", "chart", "data"],
+  "author": "",
+  "license": "MIT"
 }

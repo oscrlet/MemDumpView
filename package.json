@@ -1,12 +1,13 @@
 {
   "name": "heapview",
-  "version": "1.0.0",
-  "description": "Heap Dump Viewer",
+  "version": "2.0.0",
+  "description": "Heap Dump Viewer - Modular v2.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --port 5174",
     "lint": "eslint . --ext .js,.ts || true",
     "format": "prettier --write . || true"
   },

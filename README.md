@@ -1,208 +1,248 @@
-# Heap Dump Viewer — Usage & Development Guide
+# Memory Dump Viewer v2.0
 
-## Quick links
+A modern, modular visualization tool for analyzing memory dump and CSV data with interactive charts.
 
-- Where the app entry lives: src/js/main.js
-- Utility modules: src/js/utils.js, src/js/parser.js, src/js/downsample.js, src/js/plot.js
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js (v14 or higher)
+- npm
+
+### Installation & Running
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm build
+
+# Preview production build
+npm run preview
+```
+
+The app will be available at `http://localhost:5173` (dev) or `http://localhost:5174` (preview).
+
+## 📋 Features
+
+- **Interactive Canvas Chart**: Pan, zoom, and select data with mouse and touch
+- **Drag & Drop**: Drop CSV files anywhere to load them instantly
+- **Data Resampling**: LTTB algorithm for efficient visualization of large datasets
+- **Pinned Points**: Click to pin important data points for reference
+- **Keyboard Navigation**: Fast navigation with keyboard shortcuts
+- **Export**: Save charts as PNG or export pinned points as CSV
+- **Responsive**: Works on desktop, tablet, and mobile devices
+- **Touch Support**: Full touch interaction support (pan, pinch-zoom, long-press to pin)
+
+## 🎮 Usage
+
+### Loading Data
+
+1. **Drag & Drop**: Simply drag a CSV file onto the browser window
+2. **File Picker**: Click "Load CSV File" button in the sidebar
+3. **Sample Data**: Click "Load Sample Data" to load demo data (if available)
+
+### CSV Format
+
+The app expects CSV files with at least two numeric columns (x, y):
+
+```csv
+x,y
+0.0,10.5
+1.0,12.3
+2.0,11.8
+...
+```
+
+### Navigation & Interaction
+
+#### Mouse Controls
+- **Click**: Pin/unpin a data point
+- **Shift + Drag**: Select an area to zoom in
+- **Drag**: Pan the view
+- **Scroll**: Zoom in/out at cursor position
+
+#### Touch Controls
+- **Tap**: Pin/unpin a data point
+- **Long Press**: Pin a data point
+- **Drag**: Pan the view
+- **Pinch**: Zoom in/out
+
+#### Keyboard Shortcuts
+- **A**: Jump to previous pinned point
+- **D**: Jump to next pinned point
+- **W**: Pan view up
+- **S**: Pan view down
+- **Q**: Zoom out
+- **Escape**: Cancel selection
+- **Delete**: Remove last pinned point
+
+### View Controls
+
+- **Resample**: Downsample data to 1000 points using LTTB algorithm (preserves visual shape)
+- **Reset View**: Return to original view showing all data
+- **Export PNG**: Save current chart view as PNG image
+- **Export Pinned CSV**: Download pinned points as CSV file
+
+## 🏗️ Architecture
+
+### Project Structure
+
+```
+/
+├── index.html              # Entry point
+├── package.json            # NPM configuration with ES modules
+├── README.md              # This file
+└── src/
+    ├── main.js            # Application orchestrator
+    ├── styles.css         # Global styles
+    ├── components/
+    │   ├── Chart.js       # Canvas chart component with event API
+    │   ├── Sidebar.js     # Control panel component
+    │   └── PinnedList.js  # Pinned points list component
+    └── utils/
+        ├── csv.js         # CSV parsing utilities
+        ├── format.js      # Number/byte formatting
+        └── lttb.js        # LTTB downsampling algorithm
+```
+
+### Module Architecture
+
+The application follows a modern, event-driven component architecture:
+
+- **main.js**: Orchestrates components and wires up event handlers
+- **Chart.js**: Canvas-based chart with EventEmitter API
+- **Sidebar.js**: DOM-only component for controls
+- **PinnedList.js**: DOM-only component for pinned points display
+
+All components communicate through events, ensuring loose coupling and maintainability.
+
+### Chart Component API
+
+The Chart component exposes the following event emitter interface:
+
+#### Events
+- `status`: File loading status and progress
+- `seriesChanged`: Data series updated
+- `pinnedChanged`: Pinned points changed
+- `resampled`: Data resampled
+- `rendered`: Chart rendered
+- `hover`: Mouse hover over data point
+
+#### Public Methods
+- `loadFile(file)`: Load CSV data from file
+- `resampleInViewAndRender(threshold)`: Downsample and render
+- `exportPNG()`: Export chart as PNG
+- `exportPinnedCSV()`: Export pinned points as CSV
+- `clearPinned()`: Clear all pinned points
+- `computeGlobalExtents()`: Calculate data bounds
+- `jumpToPin(index)`: Navigate to pinned point
+- `handleKeyEvent(event)`: Handle keyboard input
+
+## ✨ What's New in v2.0
+
+Version 2.0 is a complete modular refactor with the following key improvements:
+
+### Bug Fixes & Enhancements
+
+1. **✅ Drag & Drop Upload**: Fixed file drag-and-drop functionality
+   - Drop overlay now displays correctly when dragging files
+   - Files are properly loaded when dropped onto the window
+
+2. **✅ Selection Rectangle**: Fixed selection box visibility
+   - Selection rectangle (`select-rect`) is now visible during Shift+Drag selection
+   - Rectangle persists during the entire selection operation
+   - Properly styled with border and semi-transparent fill
+
+3. **✅ Button Hover Styles**: Fixed interactive button feedback
+   - `.card-btn:hover` effects work correctly in sidebar
+   - `.legend-item:hover` effects work in pinned list
+   - Visual feedback on all interactive elements
+
+4. **✅ Canvas Hover Detection**: Fixed tooltip behavior
+   - Hover detection works correctly over data points
+   - Tooltip shows accurate x,y coordinates
+   - Tooltip is properly positioned and clamped within chart area
+
+5. **✅ Click to Pin**: Fixed pinning interaction
+   - Click on data points correctly toggles pinned state
+   - Pinned points are highlighted with distinct styling
+   - Pinned list updates immediately
+
+6. **✅ Keyboard Shortcuts**: All keyboard commands working
+   - **a/d**: Navigate between pinned points
+   - **w/s**: Pan view vertically
+   - **q**: Zoom out
+   - **Escape**: Cancel selection
+   - **Delete**: Remove last pinned point
+
+7. **✅ Touch Interactions**: Full touch support restored
+   - Pan: Single finger drag
+   - Pinch zoom: Two finger pinch/spread
+   - Long-press pin: Touch and hold to pin a point
+   - All gestures work smoothly on mobile devices
+
+8. **✅ Pinned Tooltip Positioning**: Fixed tooltip placement
+   - Pinned point tooltips render at correct positions
+   - Tooltips are clamped within chart boundaries
+   - No overflow outside visible area
+
+### Code Quality Improvements
+
+- **Modular Architecture**: Clean separation of concerns with ES6 modules
+- **Event-Driven Design**: Components communicate via events, not direct coupling
+- **Type Safety**: Proper parameter validation and error handling
+- **Performance**: Efficient LTTB downsampling for large datasets
+- **Streaming Parser**: Chunked CSV parsing with progress reporting
+- **Canvas Rendering**: Hardware-accelerated 2D canvas rendering
+- **Responsive Design**: Mobile-first CSS with proper viewport handling
+
+## 🔧 Development
+
+### Project Scripts
+
+```bash
+npm run dev      # Start Vite dev server with HMR
+npm run build    # Build for production
+npm run preview  # Preview production build
+npm run lint     # Run ESLint
+npm run format   # Format code with Prettier
+```
+
+### Adding New Features
+
+1. **New Utility**: Add to `src/utils/`
+2. **New Component**: Add to `src/components/` with event-driven API
+3. **Wire Events**: Connect in `src/main.js`
+4. **Update Styles**: Add styles to `src/styles.css`
+
+### Testing
+
+Manual testing checklist:
+- [ ] Load CSV file via button
+- [ ] Drag & drop CSV file
+- [ ] Click to pin points
+- [ ] Shift+drag to select area
+- [ ] Mouse wheel to zoom
+- [ ] Drag to pan
+- [ ] All keyboard shortcuts
+- [ ] Touch pan and pinch zoom
+- [ ] Long-press to pin on touch
+- [ ] Export PNG
+- [ ] Export pinned CSV
+- [ ] Resample large dataset
+
+## 📝 License
+
+See [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ---
 
-## User manual — how to run and use the app
-
-1. Serve the files
-
-- The app is a static, client-side page that uses ES modules. Serve the repository root (or the folder containing the HTML that imports src/js/main.js) using any static server.
-- Examples:
-  - If the repository includes a modern dev setup (Vite), run:
-    - npm install
-    - npm run dev
-    - Open the development URL printed by Vite (usually http://localhost:5173)
-
-2. Load a heap dump file
-
-- Check [heap dump file format](./docs/heap-dump-file-format.md) for input file rules
-- Click the "Load heap dump file" button in the page UI and select your heap dump file (.txt/.log/.csv).
-- The loader expects two phases in the file:
-  - phase1: heap use — lines are "HeapBytes,marker" e.g. "12345678,true"
-  - phase2: page dump — contains before/after GC blocks marked like "-------before GC 1 -------" and "-------after GC 1 -------"
-- After loading, the timeline (Plotly) and GC pair panels will populate automatically.
-
-3. Interact with the UI
-
-- Heap timeline:
-  - Hover markers to see details.
-  - Use the GC Correlation panel to jump to and highlight GC events.
-- Downsampling:
-  - Choose an algorithm (bucket or lttb), set a target, and click Apply.
-  - Toggle between downsampled and original data.
-- GC pair view:
-  - Inspect summary panels, open charts popups, highlight corresponding heap points, zoom/rescale grid cells, and click grid cells to open page info popups.
-
----
-
-## Module map — what each file does
-
-- src/js/main.js
-  - App entry and orchestrator. Manages shared application state, wires DOM events, composes UI pieces, and calls the other modules.
-  - Exported (or global) state object contains arrays such as gcPairs, heapValuesOriginal, heapGcMarkers, dsCurrentX/Y, simulatedCompactedX/Y, and flags.
-
-- src/js/utils.js
-  - Small, general-purpose helpers used across modules:
-    - escapeHtml(text)
-    - makeMovable(popup, header)
-    - formatBytes(bytes)
-  - These functions are DOM-agnostic (except makeMovable which manipulates DOM), pure and safe to unit-test.
-
-- src/js/parser.js
-  - Parsing logic for the GC dump portion and page-usage strings.
-  - Exports:
-    - parseGCDumpBlocks(text)
-    - pairBlocks(blocks)
-    - parsePageDistribution(lines)
-    - parsePageUsages(data, kind, name)
-    - kindOrder(k)
-    - countTotalPages(dist)
-    - computeSummary(before, after)
-    - simulateCompaction(dist)
-  - No DOM access — keep parsing logic here so it can be unit-tested or reused in node-based tooling.
-
-- src/js/downsample.js
-  - Downsampling implementations that operate on numeric arrays only:
-    - downsampleBucket(x, y, target, forceSet)
-    - downsampleLTTB(x, y, target, forceSet)
-  - They accept full x/y arrays and a set of sample indices to preserve (forceSet). They return reduced x/y arrays.
-  - Pure functions — easy to test in isolation.
-
-- src/js/plot.js
-  - Builds Plotly traces and provides highlight/zoom utilities:
-    - renderHeapPlot(state)
-    - updateSimulatedLine(state)
-    - highlightHeapMarker(state, gcIdx)
-    - highlightHeapMarkerByPosition(state, pos)
-    - focusOnHeapMarker(state, sampleIndex)
-    - highlightAndFocusHeapMarker(state, gcIdx)
-    - jumpToHeapTimeline()
-  - Accepts the shared state object (from main.js) to get arrays and flags. Avoid DOM mutation other than Plotly API calls.
-
----
-
-## State design (single source of truth)
-
-- main.js keeps a central state object that other modules receive as an argument when needed.
-- Key fields:
-  - gcPairs: array of matched before/after GC pairs
-  - heapValuesOriginal: full array of heap bytes
-  - heapGcMarkers: sample indices of GC markers
-  - heapGcMarkerRawValues: raw heap bytes at marker positions
-  - heapGcMarkerValues: small-offset values used for marker plotting
-  - dsCurrentX / dsCurrentY: downsampled series
-  - dsActive: whether the plot currently shows downsampled data
-  - simulatedCompactedX / simulatedCompactedY: series for simulated compacted points
-  - haveSimulation: boolean flag to show/hide simulated series
-- When writing code that modifies state, update only the state object owned by main.js. Pass state into helpers and pure functions rather than letting them mutate globals.
-
----
-
-## Development guide — how to change and extend modules
-
-### Design rules
-
-- Separation of concerns:
-  - Parsing: parser.js only parses text → data structures.
-  - Computation: downsample.js, computeSummary, simulateCompaction return data; do not touch DOM.
-  - Presentation: plot.js and main.js manage DOM and Plotly interactions.
-  - Utilities: utils.js for small helpers.
-- Pure functions where possible. Makes unit testing straightforward.
-- Module imports: use relative imports (ES modules). Example:
-  import _ as P from './parser.js';
-  import _ as DS from './downsample.js';
-  import _ as U from './utils.js';
-  import _ as Plot from './plot.js';
-
-### Common tasks & where to change
-
-- Change parsing rules
-  - Edit src/js/parser.js (add new regexes or support for additional block formats).
-  - Add unit tests that feed example dump strings into parser functions and assert structured output.
-
-- Change plot appearance or interactivity
-  - Edit src/js/plot.js. Keep Plotly-specific code here and avoid touching parsing logic.
-
-- Change downsampling behavior
-  - Edit src/js/downsample.js. These functions must accept x/y arrays and a Set of forced indices; return reduced arrays.
-
-- Add new UI controls
-  - Add button/controls in the HTML and wire them in src/js/main.js (event handlers). Call into parser/downsample/plot as needed.
-
-- Split main.js further
-  - If main.js grows, split UI composition into smaller modules (ui.js, gcView.js) and import them from main.js. Keep state ownership in main.js or pass a controlled API for state changes.
-
-### Example small change workflow
-
-1. Identify the module (e.g., parser.js) and open it.
-2. Add the function or modify the logic (preserve public function signatures where possible).
-3. Run the app locally and load a test dump to verify no regressions.
-4. Add unit tests for pure logic where applicable (parsing / downsampling).
-5. Create a small PR describing the change and the manual verification steps.
-
----
-
-## Testing and debugging
-
-- Browser DevTools:
-  - Use console.log liberally in main.js and the module you're working on.
-  - Use debugger breakpoints to inspect state at runtime.
-
-- Unit tests for pure modules:
-  - parser.js and downsample.js are pure and ideal for unit testing.
-  - Use a test runner (Vitest / Jest / Mocha) if the repository includes one. Example quick setup with Vitest:
-    - npm install --save-dev vitest
-    - Create tests under /test/ that import the modules and assert outputs.
-
-- Manual verification checklist (after changes)
-  - Load a sample heap dump file and confirm no parsing errors.
-  - Heap timeline renders and markers match parsed marker positions.
-  - GC Correlation panel lists GC indices and highlights correctly.
-  - Clicking grid cells opens Page Info popups with correct values.
-  - Downsampling preserves GC marker positions.
-
----
-
-## Coding conventions & best practices
-
-- Prefer named exports for utilities and helpers (makes testing easier).
-- Avoid direct DOM manipulation inside parser.js and downsample.js.
-- Keep side-effects inside main.js or presentation modules (plot.js).
-- Document exported functions using short JSDoc comments (helps future contributors).
-- Keep functions small and focused: parse → compute → render.
-
----
-
-## Adding new modules
-
-- Create a new file under src/js/, export the functions you need, and import them from main.js or other modules.
-- Ensure the module does not leak globals. Use the central state object when reading application data.
-- Add unit tests for pure functions and manual QA steps for UI-affecting code.
-
----
-
-## Performance tips
-
-- For very large heap timelines, prefer downsampling before plotting.
-- Keep data structures as typed arrays only if needed for performance-critical operations; otherwise plain arrays are fine.
-- Avoid re-rendering the entire GC pair view if only a small part changed — consider incremental updates when you refactor.
-
----
-
-## Helpers & utilities to create (recommended)
-
-- tests/parser.test.js — tests for parseGCDumpBlocks, parsePageDistribution, parsePageUsages.
-- tests/downsample.test.js — tests for downsampleBucket and downsampleLTTB (validate marker preservation).
-- docs/code-structure.md — visual overview of modules and where to start.
-
----
-
-## Contact & contribution notes
-
-- When contributing, keep PRs small and include manual verification steps.
-- If you refactor behaviorally sensitive code (parsing or plotting), add regression tests or sample files used to validate the change.
+**Memory Dump Viewer v2.0** - Built with modern web technologies for fast, interactive data visualization.

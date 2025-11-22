@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Dump Viewer v2.0</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div id="app">
+    <div id="sidebar"></div>
+    <div id="chart-container">
+      <canvas id="chart"></canvas>
+      <div id="tooltip" class="tooltip"></div>
+      <div id="select-rect" class="select-rect"></div>
+    </div>
+    <div id="pinned-list"></div>
+  </div>
+  <div id="drop-overlay" class="drop-overlay">
+    <div class="drop-message">Drop CSV file here</div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

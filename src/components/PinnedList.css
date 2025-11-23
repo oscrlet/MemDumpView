@@ -18,3 +18,42 @@
 .actions { display:flex; gap:8px; }
 .btn-ghost { background: transparent; border:1px solid rgba(15,36,80,0.06); padding:6px 8px; border-radius:8px; cursor:pointer; }
 .btn-danger { background: #ff5a5f; color:#fff; border:none; padding:6px 8px; border-radius:8px; cursor:pointer; }
+.btn-menu { font-size:16px; font-weight:700; line-height:1; padding:4px 8px; }
+
+/* Floating menu styles */
+.pin-floating-menu {
+  position: fixed;
+  background: #fff;
+  border: 1px solid rgba(15,36,80,0.08);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 4px;
+  z-index: 1000;
+  min-width: 120px;
+}
+
+.pin-floating-menu .menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333;
+  transition: background 0.15s ease;
+}
+
+.pin-floating-menu .menu-item:hover {
+  background: rgba(15,36,80,0.04);
+}
+
+.pin-floating-menu .menu-item-danger {
+  color: #ff5a5f;
+}
+
+.pin-floating-menu .menu-item-danger:hover {
+  background: rgba(255,90,95,0.08);
+}

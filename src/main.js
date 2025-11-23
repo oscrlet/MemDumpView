@@ -137,6 +137,11 @@ pinnedList.onJump = (p) => {
   setStatus(`跳转到 ${p.seriesName}`);
 };
 pinnedList.onDelete = (p) => { chart.removePinned(p); setStatus('已删除标记', false); };
+pinnedList.onRename = (p, newName) => {
+  p.seriesName = newName;
+  chart._emit('pinnedChanged', chart.pinnedPoints);
+  setStatus(`已重命名为 ${newName}`);
+};
 pinnedList.onSelect = (p, ev) => {
   p.selected = !p.selected;
   chart._emit('pinnedChanged', chart.pinnedPoints);

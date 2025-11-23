@@ -10,7 +10,9 @@ export class PinnedList {
     this.sortBy = 'time';
     this.onJump = () => {};
     this.onDelete = () => {};
+    this.onRename = () => {};
     this.onSelect = () => {};
+    this._activeMenu = null;
     this._render();
   }
 
@@ -50,8 +52,8 @@ export class PinnedList {
     meta.appendChild(title); meta.appendChild(sub);
     const actions = document.createElement('div'); actions.className='actions';
     const jumpBtn = document.createElement('button'); jumpBtn.className='btn-ghost'; jumpBtn.textContent='跳转';
-    const delBtn = document.createElement('button'); delBtn.className='btn-danger'; delBtn.textContent='删除';
-    actions.appendChild(jumpBtn); actions.appendChild(delBtn);
+    const menuBtn = document.createElement('button'); menuBtn.className='btn-ghost btn-menu'; menuBtn.textContent='⋮';
+    actions.appendChild(jumpBtn); actions.appendChild(menuBtn);
     el.appendChild(meta); el.appendChild(actions);
 
     el.addEventListener('click', (ev) => {
@@ -59,8 +61,97 @@ export class PinnedList {
       this.onSelect(p, ev);
     });
     jumpBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this.onJump(p); });
-    delBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this.onDelete(p); });
+    menuBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this._openMenu(p, menuBtn); });
 
     return el;
+  }
+
+  _openMenu(p, button) {
+    // Close any existing menu
+    this._closeMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'pin-floating-menu';
+    
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'menu-item';
+    renameBtn.textContent = '重命名';
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'menu-item menu-item-danger';
+    deleteBtn.textContent = '删除';
+    
+    menu.appendChild(renameBtn);
+    menu.appendChild(deleteBtn);
+    
+    // Append to body so it can overflow the card
+    document.body.appendChild(menu);
+    
+    // Measure menu dimensions
+    const menuWidth = menu.offsetWidth;
+    const menuHeight = menu.offsetHeight;
+    const rect = button.getBoundingClientRect();
+    
+    // Get window dimensions
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    
+    // Calculate horizontal position (clamp to viewport)
+    let left = rect.left;
+    left = Math.max(8, Math.min(left, innerWidth - menuWidth - 8));
+    
+    // Calculate vertical position (prefer below, fallback to above)
+    let top = rect.bottom + 6;
+    if (top + menuHeight + 8 > innerHeight) {
+      // Not enough space below, try above
+      top = rect.top - menuHeight - 6;
+      if (top < 8) {
+        // Still not enough space, clamp to viewport
+        top = Math.max(8, Math.min(top, innerHeight - menuHeight - 8));
+      }
+    }
+    
+    // Apply rounded positions
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(top) + 'px';
+    
+    // Wire up handlers
+    renameBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      this._closeMenu();
+      const newName = prompt('输入新名称:', p.seriesName);
+      if (newName && newName.trim()) {
+        this.onRename(p, newName.trim());
+      }
+    });
+    
+    deleteBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      this._closeMenu();
+      this.onDelete(p);
+    });
+    
+    // Close menu on outside click
+    const outsideClickHandler = (ev) => {
+      if (!menu.contains(ev.target)) {
+        this._closeMenu();
+      }
+    };
+    
+    setTimeout(() => {
+      document.addEventListener('click', outsideClickHandler);
+    }, 0);
+    
+    this._activeMenu = { element: menu, cleanup: () => {
+      document.removeEventListener('click', outsideClickHandler);
+    }};
+  }
+
+  _closeMenu() {
+    if (this._activeMenu) {
+      this._activeMenu.cleanup();
+      this._activeMenu.element.remove();
+      this._activeMenu = null;
+    }
   }
 }

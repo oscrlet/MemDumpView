@@ -132,18 +132,20 @@ export class PinnedList {
     });
     
     // Close menu on outside click
+    // Use capture phase to handle clicks before they reach other elements
     const outsideClickHandler = (ev) => {
-      if (!menu.contains(ev.target)) {
+      if (!menu.contains(ev.target) && ev.target !== button) {
         this._closeMenu();
       }
     };
     
-    setTimeout(() => {
-      document.addEventListener('click', outsideClickHandler);
-    }, 0);
+    // Add listener in next tick to avoid closing from the current click event
+    requestAnimationFrame(() => {
+      document.addEventListener('click', outsideClickHandler, true);
+    });
     
     this._activeMenu = { element: menu, cleanup: () => {
-      document.removeEventListener('click', outsideClickHandler);
+      document.removeEventListener('click', outsideClickHandler, true);
     }};
   }
 

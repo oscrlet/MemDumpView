@@ -3,3 +3,5 @@ dist
 .vscode
 .DS_Store
 .env
+sample*.csv
+screenshots/

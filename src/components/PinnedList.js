@@ -48,8 +48,9 @@ export class PinnedList {
     const meta = document.createElement('div'); meta.className='meta';
     const title = document.createElement('div'); title.className='title'; 
     title.textContent = p.label || p.seriesName;
-    const sub = document.createElement('div'); sub.className='sub'; 
-    sub.textContent = p.label ? `${p.seriesName} | ${formatSeconds(p.relMicro/1e6)} — ${formatSI(p.val)}` : `${formatSeconds(p.relMicro/1e6)} — ${formatSI(p.val)}`;
+    const sub = document.createElement('div'); sub.className='sub';
+    const timeValue = `${formatSeconds(p.relMicro/1e6)} — ${formatSI(p.val)}`;
+    sub.textContent = p.label ? `${p.seriesName} | ${timeValue}` : timeValue;
     meta.appendChild(title); meta.appendChild(sub);
     const actions = document.createElement('div'); actions.className='actions';
     const renameBtn = document.createElement('button'); renameBtn.className='btn-ghost'; renameBtn.textContent='重命名';

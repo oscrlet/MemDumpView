@@ -56,6 +56,20 @@ const pinnedListContainer = document.createElement('div');
 pinnedListContainer.className = 'box pinned-box';
 pinnedListContainer.innerHTML = `<strong>标记点（Pinned）</strong><div class="small" style="margin-bottom:6px">支持 Shift/Ctrl 多选或按住 Shift 框选</div><div id="pinnedListRoot" style="margin-top:8px"></div>`;
 rightbar.appendChild(pinnedListContainer);
+
+// Bulk action buttons for pinned list
+const selectAllBtn = document.createElement('button');
+selectAllBtn.className = 'card-btn';
+selectAllBtn.textContent = '全选';
+selectAllBtn.style.marginTop = '8px';
+pinnedListContainer.insertBefore(selectAllBtn, document.getElementById('pinnedListRoot'));
+
+const deleteSelectedBtn = document.createElement('button');
+deleteSelectedBtn.className = 'card-btn';
+deleteSelectedBtn.textContent = '删除选中';
+deleteSelectedBtn.style.marginTop = '4px';
+pinnedListContainer.insertBefore(deleteSelectedBtn, document.getElementById('pinnedListRoot'));
+
 const pinnedList = new PinnedList(document.getElementById('pinnedListRoot'));
 
 // wire sidebar
@@ -141,6 +155,28 @@ pinnedList.onSelect = (p, ev) => {
   p.selected = !p.selected;
   chart._emit('pinnedChanged', chart.pinnedPoints);
 };
+
+// Bulk action button handlers
+selectAllBtn.addEventListener('click', () => {
+  const count = chart.pinnedPoints.length;
+  for (const p of chart.pinnedPoints) {
+    p.selected = true;
+  }
+  chart._emit('pinnedChanged', chart.pinnedPoints);
+  setStatus(`已选中全部 ${count} 个标记点`);
+});
+
+deleteSelectedBtn.addEventListener('click', () => {
+  const selectedItems = chart.pinnedPoints.filter(p => p.selected === true);
+  if (selectedItems.length === 0) {
+    setStatus('没有选中的标记点可删除');
+    return;
+  }
+  const count = selectedItems.length;
+  chart.pinnedPoints = chart.pinnedPoints.filter(p => p.selected !== true);
+  chart._emit('pinnedChanged', chart.pinnedPoints);
+  setStatus(`已删除 ${count} 个标记点`);
+});
 
 // expose keyboard handling - forward to UI handler
 window.addEventListener('keydown', (ev) => ui.handleKeyEvent && ui.handleKeyEvent(ev), true);

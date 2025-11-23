@@ -230,6 +230,8 @@ export class ChartCore {
       this.pinnedPoints.map(p => `${p.seriesId}:${p.relMicro}:${p.val}`)
     );
     
+    let addedCount = 0;
+    
     // Scan raw points for object points with non-empty label
     for (const point of series.raw) {
       // Only process object-format points
@@ -258,13 +260,16 @@ export class ChartCore {
             };
             this.pinnedPoints.push(entry);
             existingPins.add(pinKey); // Update the set to avoid duplicates within same batch
+            addedCount++;
           }
         }
       }
     }
     
-    // Emit pinnedChanged if any pins were added
-    this._emit('pinnedChanged', this.pinnedPoints);
+    // Emit pinnedChanged only if pins were actually added
+    if (addedCount > 0) {
+      this._emit('pinnedChanged', this.pinnedPoints);
+    }
   }
 
   // Utility: provide basic plot metrics without text-measure (UI may refine)

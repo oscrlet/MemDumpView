@@ -155,7 +155,7 @@ export class ChartCore {
    * @returns {boolean} - True if successful, false otherwise
    */
   jumpToPin(pin) {
-    if (!pin || !pin.seriesId || pin.relMicro === undefined || pin.val === undefined) {
+    if (!pin || !pin.seriesId || pin.relMicro == null || pin.val == null) {
       this._emit('status', '无效的标记点');
       return false;
     }
@@ -204,7 +204,10 @@ export class ChartCore {
     } else {
       // Pin is outside view, create a new sensible span centered on pin
       // Use a fraction of current or global span
-      const newSpan = Math.max(1, Math.min(globalSpan, Math.max(currentSpan * 0.5, 1)));
+      const halfCurrentSpan = currentSpan * 0.5;
+      const minSpan = 1;
+      const boundedSpan = Math.min(globalSpan, Math.max(halfCurrentSpan, minSpan));
+      const newSpan = Math.max(minSpan, boundedSpan);
       newMinX = Math.max(0, pinX - newSpan / 2);
       newMaxX = newMinX + newSpan;
 

@@ -57,20 +57,22 @@ pinnedListContainer.className = 'box pinned-box';
 pinnedListContainer.innerHTML = `<strong>标记点（Pinned）</strong><div class="small" style="margin-bottom:6px">支持 Shift/Ctrl 多选或按住 Shift 框选</div><div id="pinnedListRoot" style="margin-top:8px"></div>`;
 rightbar.appendChild(pinnedListContainer);
 
+const pinnedListRoot = document.getElementById('pinnedListRoot');
+
 // Bulk action buttons for pinned list
 const selectAllBtn = document.createElement('button');
 selectAllBtn.className = 'card-btn';
 selectAllBtn.textContent = '全选';
 selectAllBtn.style.marginTop = '8px';
-pinnedListContainer.insertBefore(selectAllBtn, document.getElementById('pinnedListRoot'));
+pinnedListContainer.insertBefore(selectAllBtn, pinnedListRoot);
 
 const deleteSelectedBtn = document.createElement('button');
 deleteSelectedBtn.className = 'card-btn';
 deleteSelectedBtn.textContent = '删除选中';
 deleteSelectedBtn.style.marginTop = '4px';
-pinnedListContainer.insertBefore(deleteSelectedBtn, document.getElementById('pinnedListRoot'));
+pinnedListContainer.insertBefore(deleteSelectedBtn, pinnedListRoot);
 
-const pinnedList = new PinnedList(document.getElementById('pinnedListRoot'));
+const pinnedList = new PinnedList(pinnedListRoot);
 
 // wire sidebar
 sidebar.onOpenFile = async () => {
@@ -167,13 +169,13 @@ selectAllBtn.addEventListener('click', () => {
 });
 
 deleteSelectedBtn.addEventListener('click', () => {
-  const selectedItems = chart.pinnedPoints.filter(p => p.selected === true);
+  const selectedItems = chart.pinnedPoints.filter(p => p.selected);
   if (selectedItems.length === 0) {
     setStatus('没有选中的标记点可删除');
     return;
   }
   const count = selectedItems.length;
-  chart.pinnedPoints = chart.pinnedPoints.filter(p => p.selected !== true);
+  chart.pinnedPoints = chart.pinnedPoints.filter(p => !p.selected);
   chart._emit('pinnedChanged', chart.pinnedPoints);
   setStatus(`已删除 ${count} 个标记点`);
 });

@@ -67,7 +67,7 @@ export async function parseJSONFile(file) {
  */
 function processSeries(series, index) {
   // Extract basic properties
-  const id = series.id || crypto.randomUUID?.() || `s${Date.now()}_${index}`;
+  const id = series.id || crypto.randomUUID?.() || `s${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const name = series.name || series.label || `Series ${index + 1}`;
   const meta = series.meta || {};
   

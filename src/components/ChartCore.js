@@ -56,6 +56,7 @@ export class ChartCore {
         }
         
         // Process each series from JSON
+        const newSeriesIds = [];
         for (const parsedSeries of result.series) {
           const meta = {
             id: parsedSeries.id,
@@ -80,13 +81,14 @@ export class ChartCore {
           });
           
           this.seriesList.push(meta);
+          newSeriesIds.push(meta.id);
         }
         
         this._applyColors();
         
-        // Sync embedded pins from series
+        // Sync embedded pins only from newly added series
         for (const series of this.seriesList) {
-          if (series.raw && series.raw.length > 0) {
+          if (newSeriesIds.includes(series.id) && series.raw && series.raw.length > 0) {
             this.syncPinnedFromSeries(series);
           }
         }
@@ -234,8 +236,8 @@ export class ChartCore {
           const y = point.y;
           const relMicro = absX - series.firstX;
           
-          // Check if this pin already exists (avoid duplicates)
-          const exists = this.pinnedPoints.find(p => 
+          // Check if this pin already exists (avoid duplicates) - use some() for efficiency
+          const exists = this.pinnedPoints.some(p => 
             p.seriesId === series.id && 
             p.relMicro === relMicro && 
             p.val === y

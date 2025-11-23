@@ -1,0 +1,16 @@
+{
+  "type": "series",
+  "name": "Memory Usage - With Embedded Pin",
+  "data": [
+    {"x": 1700000000000, "y": 1024},
+    {"x": 1700000001000, "y": 2048},
+    {"x": 1700000002000, "y": 3072},
+    {"x": 1700000003000, "y": 4096, "label": "Peak Memory", "color": "#ff5a5f"},
+    {"x": 1700000004000, "y": 3500},
+    {"x": 1700000005000, "y": 2800},
+    {"x": 1700000006000, "y": 2100}
+  ],
+  "meta": {
+    "description": "Sample memory usage data with one pinned point"
+  }
+}

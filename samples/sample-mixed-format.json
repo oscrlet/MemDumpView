@@ -1,0 +1,15 @@
+{
+  "type": "series",
+  "name": "Mixed Format Test",
+  "data": [
+    [1700000000000, 100],
+    [1700000001000, 200],
+    {"x": 1700000002000, "y": 300},
+    {"x": 1700000003000, "y": 400, "label": "Critical Point"},
+    [1700000004000, 350],
+    [1700000005000, 300]
+  ],
+  "meta": {
+    "description": "Tests both array and object format points"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "type": "series-collection",
+  "meta": {
+    "description": "Multiple series with embedded pins"
+  },
+  "series": [
+    {
+      "id": "mem-series-1",
+      "name": "Process A Memory",
+      "data": [
+        {"x": 1700000000000, "y": 512},
+        {"x": 1700000001000, "y": 768},
+        {"x": 1700000002000, "y": 1024, "label": "First Spike", "meta": {"event": "initialization"}},
+        {"x": 1700000003000, "y": 896},
+        {"x": 1700000004000, "y": 768}
+      ]
+    },
+    {
+      "id": "mem-series-2",
+      "name": "Process B Memory",
+      "data": [
+        {"x": 1700000000000, "y": 256},
+        {"x": 1700000001000, "y": 384},
+        {"x": 1700000002000, "y": 512},
+        {"x": 1700000003000, "y": 640, "label": "Memory Pressure"},
+        {"x": 1700000004000, "y": 512},
+        {"x": 1700000005000, "y": 400, "label": "Stabilized"}
+      ]
+    }
+  ]
+}

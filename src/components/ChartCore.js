@@ -1,4 +1,5 @@
 import { parseCSVStream } from "../utils/csv.js";
+import { parseJSONFile } from "../utils/json.js";
 import { largestTriangleThreeBuckets, binarySearchLeft, binarySearchRight } from "../utils/lttb.js";
 
 // ChartCore: data + sampling + view + pinned management, no DOM
@@ -40,34 +41,98 @@ export class ChartCore {
   // ---------- file loading ----------
   async loadFile(file) {
     this._emit('status', `解析 ${file.name}...`);
-    const id = crypto.randomUUID?.() || `s${Date.now()}`;
-    const meta = { id, name: file.name || 'file', raw: [], rel: [], sampled: [], color: '', visible: true, firstX: null, headerCols: null };
-    this.seriesList.push(meta);
-    this._emit('seriesChanged', this.seriesList);
+    
+    // Detect file type (JSON vs CSV)
+    const isJSON = file.type === 'application/json' || file.name.endsWith('.json');
+    
     try {
-      const result = await parseCSVStream(file, p => this._emit('status', `解析 ${file.name}: ${Math.round(p*100)}%`));
-      meta.headerCols = result.headerCols;
-      meta.raw = result.points.slice();
-      meta.raw.sort((a,b)=>a[0]-b[0]);
-      if (!meta.raw.length) {
-        this.seriesList = this.seriesList.filter(s => s !== meta);
+      if (isJSON) {
+        // Parse JSON file
+        const result = await parseJSONFile(file);
+        
+        if (!result.series || result.series.length === 0) {
+          this._emit('status', `文件 ${file.name} 无数据`);
+          return;
+        }
+        
+        // Process each series from JSON
+        for (const parsedSeries of result.series) {
+          const meta = {
+            id: parsedSeries.id,
+            name: parsedSeries.name,
+            raw: parsedSeries.raw,
+            rel: [],
+            sampled: [],
+            color: '',
+            visible: true,
+            firstX: parsedSeries.firstX,
+            meta: parsedSeries.meta
+          };
+          
+          // Build rel mapping (relative time)
+          meta.rel = meta.raw.map(p => {
+            if (Array.isArray(p)) {
+              return [p[0] - meta.firstX, p[1]];
+            } else {
+              // Object format, preserve it with relative x
+              return { ...p, x: p.x - meta.firstX };
+            }
+          });
+          
+          this.seriesList.push(meta);
+        }
+        
+        this._applyColors();
+        
+        // Sync embedded pins from series
+        for (const series of this.seriesList) {
+          if (series.raw && series.raw.length > 0) {
+            this.syncPinnedFromSeries(series);
+          }
+        }
+        
+        const ext = this.computeGlobalExtents();
+        if (!this.originalViewSet) {
+          this.originalViewMin = 0;
+          this.originalViewMax = ext.max;
+          this.originalViewSet = true;
+        }
+        this.viewMinX = 0;
+        this.viewMaxX = ext.max;
+        this.resampleInView();
+        this._emit('status', `解析完成：${file.name}`);
         this._emit('seriesChanged', this.seriesList);
-        this._emit('status', `文件 ${file.name} 无数据`);
-        return;
+      } else {
+        // Parse CSV file (original logic)
+        const id = crypto.randomUUID?.() || `s${Date.now()}`;
+        const meta = { id, name: file.name || 'file', raw: [], rel: [], sampled: [], color: '', visible: true, firstX: null, headerCols: null };
+        this.seriesList.push(meta);
+        this._emit('seriesChanged', this.seriesList);
+        
+        const result = await parseCSVStream(file, p => this._emit('status', `解析 ${file.name}: ${Math.round(p*100)}%`));
+        meta.headerCols = result.headerCols;
+        meta.raw = result.points.slice();
+        meta.raw.sort((a,b)=>a[0]-b[0]);
+        if (!meta.raw.length) {
+          this.seriesList = this.seriesList.filter(s => s !== meta);
+          this._emit('seriesChanged', this.seriesList);
+          this._emit('status', `文件 ${file.name} 无数据`);
+          return;
+        }
+        meta.firstX = meta.raw[0][0];
+        meta.rel = meta.raw.map(p => [p[0] - meta.firstX, p[1]]);
+        this._applyColors();
+        const ext = this.computeGlobalExtents();
+        if (!this.originalViewSet) {
+          this.originalViewMin = 0;
+          this.originalViewMax = ext.max;
+          this.originalViewSet = true;
+        }
+        this.viewMinX = 0; this.viewMaxX = ext.max;
+        this.resampleInView();
+        this._emit('status', `解析完成：${file.name}`);
+        this._emit('seriesChanged', this.seriesList);
       }
-      meta.firstX = meta.raw[0][0];
-      meta.rel = meta.raw.map(p => [p[0] - meta.firstX, p[1]]);
-      this._applyColors();
-      const ext = this.computeGlobalExtents();
-      if (!this.originalViewSet) {
-        this.originalViewMin = 0;
-        this.originalViewMax = ext.max;
-        this.originalViewSet = true;
-      }
-      this.viewMinX = 0; this.viewMaxX = ext.max;
-      this.resampleInView();
-      this._emit('status', `解析完成：${file.name}`);
-      this._emit('seriesChanged', this.seriesList);
     } catch (err) {
       console.error(err);
       this._emit('status', `解析失败：${err && err.message ? err.message : err}`);
@@ -150,6 +215,53 @@ export class ChartCore {
     for (const p of this.pinnedPoints) out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val}\n`;
     const blob = new Blob([out], {type: 'text/csv;charset=utf-8;'});
     return blob;
+  }
+
+  // Sync pinned points from series raw data (for embedded pins with labels)
+  syncPinnedFromSeries(series) {
+    if (!series || !series.raw || !Array.isArray(series.raw)) {
+      return;
+    }
+    
+    // Scan raw points for object points with non-empty label
+    for (const point of series.raw) {
+      // Only process object-format points
+      if (typeof point === 'object' && point !== null && !Array.isArray(point)) {
+        const label = point.label;
+        // Check if point has a non-empty label
+        if (label !== undefined && label !== null && String(label).trim() !== '') {
+          const absX = point.x;
+          const y = point.y;
+          const relMicro = absX - series.firstX;
+          
+          // Check if this pin already exists (avoid duplicates)
+          const exists = this.pinnedPoints.find(p => 
+            p.seriesId === series.id && 
+            p.relMicro === relMicro && 
+            p.val === y
+          );
+          
+          if (!exists) {
+            // Add pinned point with label as series name
+            const pinColor = point.color || series.color || '#333';
+            const entry = {
+              seriesId: series.id,
+              seriesName: String(label),
+              relMicro,
+              val: y,
+              color: pinColor,
+              selected: false,
+              hidden: false,
+              source: 'embedded' // Mark as embedded pin
+            };
+            this.pinnedPoints.push(entry);
+          }
+        }
+      }
+    }
+    
+    // Emit pinnedChanged if any pins were added
+    this._emit('pinnedChanged', this.pinnedPoints);
   }
 
   // Utility: provide basic plot metrics without text-measure (UI may refine)

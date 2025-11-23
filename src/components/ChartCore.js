@@ -48,15 +48,23 @@ export class ChartCore {
       const result = await parseCSVStream(file, p => this._emit('status', `解析 ${file.name}: ${Math.round(p*100)}%`));
       meta.headerCols = result.headerCols;
       meta.raw = result.points.slice();
-      meta.raw.sort((a,b)=>a[0]-b[0]);
+      meta.raw.sort((a,b)=>{
+        const ax = Array.isArray(a) ? a[0] : a.x;
+        const bx = Array.isArray(b) ? b[0] : b.x;
+        return ax - bx;
+      });
       if (!meta.raw.length) {
         this.seriesList = this.seriesList.filter(s => s !== meta);
         this._emit('seriesChanged', this.seriesList);
         this._emit('status', `文件 ${file.name} 无数据`);
         return;
       }
-      meta.firstX = meta.raw[0][0];
-      meta.rel = meta.raw.map(p => [p[0] - meta.firstX, p[1]]);
+      const firstPoint = meta.raw[0];
+      meta.firstX = Array.isArray(firstPoint) ? firstPoint[0] : firstPoint.x;
+      meta.rel = meta.raw.map(p => {
+        if (Array.isArray(p)) return [p[0] - meta.firstX, p[1]];
+        return [p.x - meta.firstX, p.y];
+      });
       this._applyColors();
       const ext = this.computeGlobalExtents();
       if (!this.originalViewSet) {
@@ -66,6 +74,8 @@ export class ChartCore {
       }
       this.viewMinX = 0; this.viewMaxX = ext.max;
       this.resampleInView();
+      // Sync pinned points from series with embedded labels
+      this.syncPinnedFromSeries(meta);
       this._emit('status', `解析完成：${file.name}`);
       this._emit('seriesChanged', this.seriesList);
     } catch (err) {
@@ -122,11 +132,106 @@ export class ChartCore {
     this._emit('resampled', null);
   }
 
+  // Sync pinned points from series point objects with labels
+  syncPinnedFromSeries(series) {
+    const seriesToSync = series ? [series] : this.seriesList;
+    
+    // Collect source-driven pins from all series
+    const sourcePins = [];
+    for (const s of seriesToSync) {
+      if (!s.raw || s.raw.length === 0) continue;
+      
+      for (let i = 0; i < s.raw.length; i++) {
+        const point = s.raw[i];
+        // Check if point is an object with a non-empty label
+        if (typeof point === 'object' && !Array.isArray(point) && point.label && String(point.label).trim()) {
+          const x = point.x;
+          const y = point.y;
+          if (!isFinite(x) || !isFinite(y)) continue;
+          
+          const relMicro = x - (s.firstX || 0);
+          
+          // Create or update pin entry
+          sourcePins.push({
+            seriesId: s.id,
+            seriesName: s.name,
+            relMicro,
+            val: y,
+            color: s.color || '#333',
+            selected: false,
+            label: String(point.label).trim(),
+            sourcePoint: point,
+            meta: point.meta || null
+          });
+        }
+      }
+    }
+    
+    // Preserve user-added pins (those without sourcePoint reference)
+    const userPins = this.pinnedPoints.filter(p => !p.sourcePoint);
+    
+    // Merge: keep user pins and add/update source pins
+    const mergedPins = [...userPins];
+    
+    for (const srcPin of sourcePins) {
+      // Check if this source pin already exists in pinnedPoints
+      const existingIdx = mergedPins.findIndex(p => 
+        p.seriesId === srcPin.seriesId && 
+        Math.abs(p.relMicro - srcPin.relMicro) < 0.001 && 
+        Math.abs(p.val - srcPin.val) < 0.001
+      );
+      
+      if (existingIdx >= 0) {
+        // Update existing pin with source reference and label
+        mergedPins[existingIdx] = {
+          ...mergedPins[existingIdx],
+          label: srcPin.label,
+          sourcePoint: srcPin.sourcePoint,
+          meta: srcPin.meta
+        };
+      } else {
+        // Add new source pin
+        mergedPins.push(srcPin);
+      }
+    }
+    
+    this.pinnedPoints = mergedPins;
+    this._emit('pinnedChanged', this.pinnedPoints);
+  }
+
   // pinned API
   addPinned(seriesId, relMicro, val, color, seriesName) {
     const exists = this.pinnedPoints.find(p => p.seriesId === seriesId && p.relMicro === relMicro && p.val === val);
     if (exists) return exists;
-    const entry = { seriesId, seriesName, relMicro, val, color, selected:false };
+    
+    // Try to find a matching source point object in the series
+    const series = this.seriesList.find(s => s.id === seriesId);
+    let sourcePoint = null;
+    if (series && series.raw) {
+      for (const point of series.raw) {
+        if (typeof point === 'object' && !Array.isArray(point)) {
+          const x = point.x;
+          const y = point.y;
+          const pointRelMicro = x - (series.firstX || 0);
+          if (Math.abs(pointRelMicro - relMicro) < 0.001 && Math.abs(y - val) < 0.001) {
+            sourcePoint = point;
+            break;
+          }
+        }
+      }
+    }
+    
+    const entry = { 
+      seriesId, 
+      seriesName, 
+      relMicro, 
+      val, 
+      color, 
+      selected: false,
+      label: sourcePoint && sourcePoint.label ? String(sourcePoint.label).trim() : '',
+      sourcePoint: sourcePoint || null,
+      meta: sourcePoint && sourcePoint.meta ? sourcePoint.meta : null
+    };
     this.pinnedPoints.push(entry);
     this._emit('pinnedChanged', this.pinnedPoints);
     this._emit('status', `标记点已添加：${seriesName} ${(relMicro/1e6).toFixed(3)}s`);
@@ -145,8 +250,12 @@ export class ChartCore {
   }
   exportPinnedCSV() {
     if (!this.pinnedPoints.length) return null;
-    let out = 'series,rel_us,value\n';
-    for (const p of this.pinnedPoints) out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val}\n`;
+    let out = 'series,rel_us,value,label,meta\n';
+    for (const p of this.pinnedPoints) {
+      const label = p.label || '';
+      const meta = p.meta ? JSON.stringify(p.meta) : '';
+      out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val},${JSON.stringify(label)},${JSON.stringify(meta)}\n`;
+    }
     const blob = new Blob([out], {type: 'text/csv;charset=utf-8;'});
     return blob;
   }

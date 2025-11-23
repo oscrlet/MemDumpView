@@ -11,6 +11,7 @@ export class PinnedList {
     this.onJump = () => {};
     this.onDelete = () => {};
     this.onSelect = () => {};
+    this.onRename = () => {};
     this._render();
   }
 
@@ -45,7 +46,21 @@ export class PinnedList {
     const el = document.createElement('div');
     el.className = 'pinned-item' + (p.selected ? ' selected' : '');
     const meta = document.createElement('div'); meta.className='meta';
-    const title = document.createElement('div'); title.className='title'; title.textContent = p.seriesName;
+    const title = document.createElement('div'); 
+    title.className='title'; 
+    title.textContent = p.label || p.seriesName;
+    title.style.cursor = 'pointer';
+    title.title = '双击重命名';
+    
+    // Add double-click handler for rename
+    title.addEventListener('dblclick', (ev) => {
+      ev.stopPropagation();
+      const newName = prompt('输入新名称:', p.label || p.seriesName);
+      if (newName !== null && newName.trim()) {
+        this.onRename(p, newName.trim());
+      }
+    });
+    
     const sub = document.createElement('div'); sub.className='sub'; sub.textContent = `${formatSeconds(p.relMicro/1e6)} — ${formatSI(p.val)}`;
     meta.appendChild(title); meta.appendChild(sub);
     const actions = document.createElement('div'); actions.className='actions';

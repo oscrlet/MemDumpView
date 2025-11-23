@@ -180,6 +180,7 @@ export class ChartCore {
     // Check if pin is already in view
     const pinX = pin.relMicro;
     const inView = (pinX >= this.viewMinX && pinX <= this.viewMaxX);
+    const MIN_SPAN = 1;
 
     let newMinX, newMaxX;
 
@@ -205,9 +206,7 @@ export class ChartCore {
       // Pin is outside view, create a new sensible span centered on pin
       // Use a fraction of current or global span
       const halfCurrentSpan = currentSpan * 0.5;
-      const minSpan = 1;
-      const boundedSpan = Math.min(globalSpan, Math.max(halfCurrentSpan, minSpan));
-      const newSpan = Math.max(minSpan, boundedSpan);
+      const newSpan = Math.min(globalSpan, Math.max(halfCurrentSpan, MIN_SPAN));
       newMinX = Math.max(0, pinX - newSpan / 2);
       newMaxX = newMinX + newSpan;
 
@@ -220,7 +219,7 @@ export class ChartCore {
 
     // Apply the new view
     this.viewMinX = newMinX;
-    this.viewMaxX = Math.max(newMinX + 1, newMaxX);
+    this.viewMaxX = Math.max(newMinX + MIN_SPAN, newMaxX);
 
     // Resample and emit events
     this.resampleInView();

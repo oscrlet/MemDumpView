@@ -1,5 +1,5 @@
 import { parseCSVStream } from "../utils/csv.js";
-import { largestTriangleThreeBuckets, binarySearchLeft, binarySearchRight } from "../utils/lttb.js";
+import { largestTriangleThreeBuckets, binarySearchLeft, binarySearchRight, makeColors } from "../utils/lttb.js";
 
 // ChartCore: data + sampling + view + pinned management, no DOM
 export class ChartCore {
@@ -75,9 +75,7 @@ export class ChartCore {
   }
 
   _applyColors() {
-    const colors = [];
-    const n = this.seriesList.length;
-    for (let i=0;i<n;i++){ const hue = Math.round((360 / Math.max(1, n)) * i); colors.push(`hsl(${hue} 70% 45%)`); }
+    const colors = makeColors(this.seriesList.length);
     this.seriesList.forEach((s,i)=> s.color = s.color || colors[i%colors.length]);
   }
 
@@ -149,6 +147,84 @@ export class ChartCore {
     for (const p of this.pinnedPoints) out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val}\n`;
     const blob = new Blob([out], {type: 'text/csv;charset=utf-8;'});
     return blob;
+  }
+
+  /**
+   * Jump to a pinned point by centering and adjusting the view to focus on it.
+   * @param {Object} pin - The pinned point object with seriesId, relMicro, val
+   * @returns {boolean} - True if successful, false otherwise
+   */
+  jumpToPin(pin) {
+    if (!pin || !pin.seriesId || pin.relMicro === undefined || pin.val === undefined) {
+      this._emit('status', '无效的标记点');
+      return false;
+    }
+
+    // Find the series for this pin
+    const series = this.seriesList.find(s => s.id === pin.seriesId);
+    if (!series) {
+      this._emit('status', '未找到对应序列');
+      return false;
+    }
+
+    // Select this pin and deselect others
+    for (const p of this.pinnedPoints) {
+      p.selected = (p === pin);
+    }
+
+    // Get global extents
+    const ext = this.computeGlobalExtents();
+    const globalSpan = Math.max(1, ext.max - 0);
+    const currentSpan = Math.max(1, this.viewMaxX - this.viewMinX);
+
+    // Check if pin is already in view
+    const pinX = pin.relMicro;
+    const inView = (pinX >= this.viewMinX && pinX <= this.viewMaxX);
+
+    let newMinX, newMaxX;
+
+    if (inView) {
+      // Pin is already in view, just ensure it's visible (pan if needed at edges)
+      const margin = currentSpan * 0.1;
+      if (pinX < this.viewMinX + margin) {
+        // Too close to left edge, pan left
+        const shift = (this.viewMinX + margin) - pinX;
+        newMinX = Math.max(0, this.viewMinX - shift);
+        newMaxX = newMinX + currentSpan;
+      } else if (pinX > this.viewMaxX - margin) {
+        // Too close to right edge, pan right
+        const shift = pinX - (this.viewMaxX - margin);
+        newMaxX = Math.min(ext.max, this.viewMaxX + shift);
+        newMinX = Math.max(0, newMaxX - currentSpan);
+      } else {
+        // Already well positioned, no change needed
+        newMinX = this.viewMinX;
+        newMaxX = this.viewMaxX;
+      }
+    } else {
+      // Pin is outside view, create a new sensible span centered on pin
+      // Use a fraction of current or global span
+      const newSpan = Math.max(1, Math.min(globalSpan, Math.max(currentSpan * 0.5, 1)));
+      newMinX = Math.max(0, pinX - newSpan / 2);
+      newMaxX = newMinX + newSpan;
+
+      // Clamp to global extents
+      if (newMaxX > ext.max) {
+        newMaxX = ext.max;
+        newMinX = Math.max(0, newMaxX - newSpan);
+      }
+    }
+
+    // Apply the new view
+    this.viewMinX = newMinX;
+    this.viewMaxX = Math.max(newMinX + 1, newMaxX);
+
+    // Resample and emit events
+    this.resampleInView();
+    this._emit('pinnedChanged', this.pinnedPoints);
+    this._emit('status', `已跳转到 ${pin.seriesName} ${(pin.relMicro/1e6).toFixed(3)}s`);
+
+    return true;
   }
 
   // Utility: provide basic plot metrics without text-measure (UI may refine)

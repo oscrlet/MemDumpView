@@ -141,6 +141,11 @@ pinnedList.onSelect = (p, ev) => {
   p.selected = !p.selected;
   chart._emit('pinnedChanged', chart.pinnedPoints);
 };
+pinnedList.onRename = (p, newName) => {
+  p.label = String(newName || '');
+  chart._emit('pinnedChanged', chart.pinnedPoints);
+  setStatus('已重命名标记');
+};
 
 // expose keyboard handling - forward to UI handler
 window.addEventListener('keydown', (ev) => ui.handleKeyEvent && ui.handleKeyEvent(ev), true);

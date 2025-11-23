@@ -228,7 +228,7 @@ export class ChartUI {
       node.el.style.borderRadius = '8px';
       node.el.style.fontSize = '12px';
       node.el.style.zIndex = 9998;
-      node.el.innerHTML = `<div style="font-weight:700">${p.seriesName}</div><div style="opacity:0.95">${(p.relMicro/1e6).toFixed(3)}s — ${p.val}</div>`;
+      node.el.innerHTML = `<div style="font-weight:700">${p.label || p.seriesName}</div><div style="opacity:0.95">${(p.relMicro/1e6).toFixed(3)}s — ${p.val}</div>`;
     }
 
     // cleanup stale nodes

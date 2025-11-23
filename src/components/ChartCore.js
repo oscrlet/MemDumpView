@@ -123,10 +123,10 @@ export class ChartCore {
   }
 
   // pinned API
-  addPinned(seriesId, relMicro, val, color, seriesName) {
+  addPinned(seriesId, relMicro, val, color, seriesName, label) {
     const exists = this.pinnedPoints.find(p => p.seriesId === seriesId && p.relMicro === relMicro && p.val === val);
     if (exists) return exists;
-    const entry = { seriesId, seriesName, relMicro, val, color, selected:false };
+    const entry = { seriesId, seriesName, relMicro, val, color, selected:false, label: label || '' };
     this.pinnedPoints.push(entry);
     this._emit('pinnedChanged', this.pinnedPoints);
     this._emit('status', `标记点已添加：${seriesName} ${(relMicro/1e6).toFixed(3)}s`);
@@ -145,8 +145,8 @@ export class ChartCore {
   }
   exportPinnedCSV() {
     if (!this.pinnedPoints.length) return null;
-    let out = 'series,rel_us,value\n';
-    for (const p of this.pinnedPoints) out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val}\n`;
+    let out = 'series,rel_us,value,label\n';
+    for (const p of this.pinnedPoints) out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val},${JSON.stringify(p.label || '')}\n`;
     const blob = new Blob([out], {type: 'text/csv;charset=utf-8;'});
     return blob;
   }

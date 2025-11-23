@@ -27,6 +27,7 @@ html,body { height:100%; margin:0; font-family:system-ui, -apple-system, "Segoe 
 .chart-wrap { flex:1 1 auto; background:var(--panel); border-radius:14px; padding:12px; box-shadow:0 10px 30px rgba(20,30,60,0.06); display:flex; flex-direction:column; min-width:0; position:relative; overflow:hidden; min-height:0; }
 canvas { width:100%; height:100%; border-radius:8px; display:block; cursor:crosshair; background:#fff; }
 .box { background:var(--panel); padding:var(--card-padding); border-radius:12px; border:1px solid var(--card-border); box-shadow: 0 6px 18px rgba(20,30,60,0.03); font-size:13px; color:var(--text); overflow:auto; }
+.sidebar > .box, .rightbar > .box { flex: 1 1 auto; min-height:0; display:flex; flex-direction:column; }
 .legend { display:flex; gap:8px; flex-wrap:wrap; }
 .legend-item { display:flex; gap:8px; align-items:center; padding:6px; background:rgba(255,255,255,0.9); border-radius:8px; border:1px solid rgba(15,36,80,0.04); cursor:pointer; user-select:none; transition:transform 120ms ease, box-shadow 120ms ease; }
 .card-btn { display:flex; align-items:center; gap:10px; width:100%; box-sizing:border-box; padding: var(--btn-padding-vertical) var(--btn-padding-horizontal); border-radius: var(--btn-radius); border: none; background: transparent; color:var(--text); cursor:pointer; font-weight:600; margin:10px 0 0 0; text-align:left; }

@@ -136,10 +136,13 @@ export class ChartCore {
     this._emit('resampled', null);
   }
 
-  // Sync pinned points from series point objects with labels
-  // NOTE: This method is designed for future JSON import where series.raw may contain
-  // point objects like {x, y, label, meta}. CSV-imported data uses [x,y] arrays and
-  // will be safely skipped by the typeof/Array.isArray check. This is intentional.
+  /**
+   * Sync pinned points from series point objects with labels.
+   * NOTE: This method is designed for future JSON import where series.raw may contain
+   * point objects like {x, y, label, meta}. CSV-imported data uses [x,y] arrays and
+   * will be safely skipped by the typeof/Array.isArray check. This is intentional.
+   * @param {Object|null} series - Optional series to sync. If null, syncs all series in seriesList.
+   */
   syncPinnedFromSeries(series) {
     const seriesToSync = series ? [series] : this.seriesList;
     
@@ -261,7 +264,7 @@ export class ChartCore {
     for (const p of this.pinnedPoints) {
       const label = p.label || '';
       const meta = p.meta ? JSON.stringify(p.meta) : '';
-      out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val},${JSON.stringify(label)},${JSON.stringify(meta)}\n`;
+      out += `${JSON.stringify(p.seriesName)},${p.relMicro},${p.val},${JSON.stringify(label)},${meta}\n`;
     }
     const blob = new Blob([out], {type: 'text/csv;charset=utf-8;'});
     return blob;

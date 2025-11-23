@@ -11,6 +11,7 @@ export class PinnedList {
     this.onJump = () => {};
     this.onDelete = () => {};
     this.onSelect = () => {};
+    this.onHide = () => {};
     this._render();
   }
 
@@ -44,6 +45,17 @@ export class PinnedList {
   _makeRow(p) {
     const el = document.createElement('div');
     el.className = 'pinned-item' + (p.selected ? ' selected' : '');
+    
+    // Add checkbox for selection
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'pin-checkbox';
+    checkbox.checked = p.selected || false;
+    checkbox.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      this.onSelect(p, ev);
+    });
+    
     const meta = document.createElement('div'); meta.className='meta';
     const title = document.createElement('div'); title.className='title'; title.textContent = p.seriesName;
     const sub = document.createElement('div'); sub.className='sub'; sub.textContent = `${formatSeconds(p.relMicro/1e6)} — ${formatSI(p.val)}`;
@@ -52,11 +64,15 @@ export class PinnedList {
     const jumpBtn = document.createElement('button'); jumpBtn.className='btn-ghost'; jumpBtn.textContent='跳转';
     const delBtn = document.createElement('button'); delBtn.className='btn-danger'; delBtn.textContent='删除';
     actions.appendChild(jumpBtn); actions.appendChild(delBtn);
-    el.appendChild(meta); el.appendChild(actions);
+    el.appendChild(checkbox); el.appendChild(meta); el.appendChild(actions);
 
+    // Row click now toggles series visibility (onHide), but not when clicking checkbox or actions
     el.addEventListener('click', (ev) => {
+      if (ev.target.closest('.actions') || ev.target.closest('.pin-checkbox')) {
+        return;
+      }
       ev.stopPropagation();
-      this.onSelect(p, ev);
+      this.onHide(p, ev);
     });
     jumpBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this.onJump(p); });
     delBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this.onDelete(p); });

@@ -141,6 +141,15 @@ pinnedList.onSelect = (p, ev) => {
   p.selected = !p.selected;
   chart._emit('pinnedChanged', chart.pinnedPoints);
 };
+pinnedList.onHide = (p) => {
+  const s = chart.seriesList.find(x => x.id === p.seriesId);
+  if (s) {
+    s.visible = !s.visible;
+    chart.resampleInView();
+    sidebar.updateLegend(chart.seriesList);
+    setStatus(`${s.name} 已${s.visible ? '显示' : '隐藏'}`);
+  }
+};
 
 // expose keyboard handling - forward to UI handler
 window.addEventListener('keydown', (ev) => ui.handleKeyEvent && ui.handleKeyEvent(ev), true);

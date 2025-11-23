@@ -174,7 +174,7 @@ export class ChartCore {
 
     // Get global extents
     const ext = this.computeGlobalExtents();
-    const globalSpan = Math.max(1, ext.max - 0);
+    const globalSpan = Math.max(1, ext.max - ext.min);
     const currentSpan = Math.max(1, this.viewMaxX - this.viewMinX);
 
     // Check if pin is already in view

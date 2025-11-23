@@ -48,6 +48,7 @@ export class ChartCore {
       const result = await parseCSVStream(file, p => this._emit('status', `解析 ${file.name}: ${Math.round(p*100)}%`));
       meta.headerCols = result.headerCols;
       meta.raw = result.points.slice();
+      // Support both array [x,y] and object {x,y,label,meta} points
       meta.raw.sort((a,b)=>{
         const ax = Array.isArray(a) ? a[0] : a.x;
         const bx = Array.isArray(b) ? b[0] : b.x;
@@ -74,7 +75,7 @@ export class ChartCore {
       }
       this.viewMinX = 0; this.viewMaxX = ext.max;
       this.resampleInView();
-      // Sync pinned points from series with embedded labels
+      // Sync pinned points from series with embedded labels (if any)
       this.syncPinnedFromSeries(meta);
       this._emit('status', `解析完成：${file.name}`);
       this._emit('seriesChanged', this.seriesList);
@@ -133,6 +134,9 @@ export class ChartCore {
   }
 
   // Sync pinned points from series point objects with labels
+  // NOTE: This method is designed for future JSON import where series.raw may contain
+  // point objects like {x, y, label, meta}. CSV-imported data uses [x,y] arrays and
+  // will be safely skipped by the typeof/Array.isArray check. This is intentional.
   syncPinnedFromSeries(series) {
     const seriesToSync = series ? [series] : this.seriesList;
     
@@ -143,7 +147,7 @@ export class ChartCore {
       
       for (let i = 0; i < s.raw.length; i++) {
         const point = s.raw[i];
-        // Check if point is an object with a non-empty label
+        // Check if point is an object with a non-empty label (skips arrays from CSV)
         if (typeof point === 'object' && !Array.isArray(point) && point.label && String(point.label).trim()) {
           const x = point.x;
           const y = point.y;

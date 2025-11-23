@@ -1,6 +1,9 @@
 import { parseCSVStream } from "../utils/csv.js";
 import { largestTriangleThreeBuckets, binarySearchLeft, binarySearchRight } from "../utils/lttb.js";
 
+// Tolerance for comparing pin coordinates (microseconds)
+const PIN_COORDINATE_TOLERANCE = 0.001;
+
 // ChartCore: data + sampling + view + pinned management, no DOM
 export class ChartCore {
   constructor() {
@@ -181,8 +184,8 @@ export class ChartCore {
       // Check if this source pin already exists in pinnedPoints
       const existingIdx = mergedPins.findIndex(p => 
         p.seriesId === srcPin.seriesId && 
-        Math.abs(p.relMicro - srcPin.relMicro) < 0.001 && 
-        Math.abs(p.val - srcPin.val) < 0.001
+        Math.abs(p.relMicro - srcPin.relMicro) < PIN_COORDINATE_TOLERANCE && 
+        Math.abs(p.val - srcPin.val) < PIN_COORDINATE_TOLERANCE
       );
       
       if (existingIdx >= 0) {
@@ -217,7 +220,7 @@ export class ChartCore {
           const x = point.x;
           const y = point.y;
           const pointRelMicro = x - (series.firstX || 0);
-          if (Math.abs(pointRelMicro - relMicro) < 0.001 && Math.abs(y - val) < 0.001) {
+          if (Math.abs(pointRelMicro - relMicro) < PIN_COORDINATE_TOLERANCE && Math.abs(y - val) < PIN_COORDINATE_TOLERANCE) {
             sourcePoint = point;
             break;
           }

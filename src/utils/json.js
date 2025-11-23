@@ -67,7 +67,7 @@ export async function parseJSONFile(file) {
  */
 function processSeries(series, index) {
   // Extract basic properties
-  const id = series.id || crypto.randomUUID?.() || `s${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const id = series.id || crypto.randomUUID?.() || `s${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
   const name = series.name || series.label || `Series ${index + 1}`;
   const meta = series.meta || {};
   
@@ -173,6 +173,7 @@ function normalizePoint(point, index, seriesName) {
  * Normalize time value to microseconds
  * - If string: parse as date -> milliseconds -> microseconds
  * - If number < 1e13: treat as milliseconds -> microseconds
+ *   (1e13 is ~317 years in milliseconds, used as threshold to distinguish ms from μs)
  * - If number >= 1e13: treat as microseconds
  * @param {string|number} value - Time value
  * @returns {number|null} Time in microseconds or null if invalid
@@ -189,7 +190,7 @@ function normalizeTime(value) {
     if (!isFinite(value)) {
       return null;
     }
-    // Heuristic: if < 1e13, treat as milliseconds; else as microseconds
+    // Heuristic: if < 1e13 (approx 317 years in ms), treat as milliseconds; else as microseconds
     if (value < 1e13) {
       return value * 1000; // milliseconds -> microseconds
     } else {

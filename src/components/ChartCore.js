@@ -56,7 +56,7 @@ export class ChartCore {
         }
         
         // Process each series from JSON
-        const newSeriesIds = [];
+        const newSeriesIds = new Set();
         for (const parsedSeries of result.series) {
           const meta = {
             id: parsedSeries.id,
@@ -81,14 +81,14 @@ export class ChartCore {
           });
           
           this.seriesList.push(meta);
-          newSeriesIds.push(meta.id);
+          newSeriesIds.add(meta.id);
         }
         
         this._applyColors();
         
         // Sync embedded pins only from newly added series
         for (const series of this.seriesList) {
-          if (newSeriesIds.includes(series.id) && series.raw && series.raw.length > 0) {
+          if (newSeriesIds.has(series.id) && series.raw && series.raw.length > 0) {
             this.syncPinnedFromSeries(series);
           }
         }
@@ -225,6 +225,11 @@ export class ChartCore {
       return;
     }
     
+    // Build a Set of existing pin keys for O(1) lookup
+    const existingPins = new Set(
+      this.pinnedPoints.map(p => `${p.seriesId}:${p.relMicro}:${p.val}`)
+    );
+    
     // Scan raw points for object points with non-empty label
     for (const point of series.raw) {
       // Only process object-format points
@@ -236,14 +241,9 @@ export class ChartCore {
           const y = point.y;
           const relMicro = absX - series.firstX;
           
-          // Check if this pin already exists (avoid duplicates) - use some() for efficiency
-          const exists = this.pinnedPoints.some(p => 
-            p.seriesId === series.id && 
-            p.relMicro === relMicro && 
-            p.val === y
-          );
-          
-          if (!exists) {
+          // Check if this pin already exists (avoid duplicates)
+          const pinKey = `${series.id}:${relMicro}:${y}`;
+          if (!existingPins.has(pinKey)) {
             // Add pinned point with label as series name
             const pinColor = point.color || series.color || '#333';
             const entry = {
@@ -257,6 +257,7 @@ export class ChartCore {
               source: 'embedded' // Mark as embedded pin
             };
             this.pinnedPoints.push(entry);
+            existingPins.add(pinKey); // Update the set to avoid duplicates within same batch
           }
         }
       }

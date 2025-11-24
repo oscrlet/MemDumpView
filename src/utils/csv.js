@@ -58,6 +58,11 @@ function stripBOM(s) {
  * Normalize time value to microseconds (consistent with JSON import)
  * - If value < 1e13, treat as milliseconds and multiply by 1000
  * - Otherwise, treat as microseconds
+ * Heuristic reasoning:
+ * - Current epoch ms: ~1.7e12 (year 2024)
+ * - Current epoch μs: ~1.7e15 (year 2024)
+ * - 1e13 = 10,000,000,000,000 ms ≈ year 2286 (far future)
+ * - So values >= 1e13 are safely microseconds
  * @param {number} rawX - Raw time value
  * @returns {number} - Time in microseconds
  */
@@ -72,12 +77,14 @@ function normalizeTimeToMicroseconds(rawX) {
 }
 
 /**
- * Check if a string is a parseable date
+ * Check if a string is a parseable date (but not a plain number)
  * @param {string} str - String to check
  * @returns {number|null} - Microseconds if valid date, null otherwise
  */
 function tryParseDate(str) {
   if (typeof str !== 'string') return null;
+  // Don't treat pure numbers as dates
+  if (/^\s*-?\d+\.?\d*\s*$/.test(str)) return null;
   const ms = Date.parse(str);
   if (isNaN(ms)) return null;
   return Math.round(ms * 1000); // Convert ms to μs

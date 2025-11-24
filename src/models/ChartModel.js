@@ -1,28 +1,31 @@
 import { parseCSVStream } from "../utils/csv.js";
 import { parseJSONFile } from "../utils/json.js";
 import { largestTriangleThreeBuckets, binarySearchLeft, binarySearchRight } from "../utils/lttb.js";
+import { createObservable } from "../lib/observable.js";
 
-// ChartCore: data + sampling + view + pinned management, no DOM
-// DEPRECATED: This class is being refactored to ChartModel in src/models/ChartModel.js
-// Kept for backward compatibility during transition
-export class ChartCore {
+// ChartModel: data + sampling + view + pinned management, no DOM
+// Uses observable state pattern for MVVM architecture
+export class ChartModel {
   constructor() {
-    // state
-    this.seriesList = [];
-    this.viewMinX = NaN;
-    this.viewMaxX = NaN;
-    this.pinnedPoints = [];
-    this.originalViewSet = false;
-    this.originalViewMin = null;
-    this.originalViewMax = null;
+    // Observable state - ViewModels and Views can subscribe to this
+    this.state = createObservable({
+      seriesList: [],
+      viewMinX: NaN,
+      viewMaxX: NaN,
+      pinnedPoints: [],
+      originalViewSet: false,
+      originalViewMin: null,
+      originalViewMax: null,
+      sampleTarget: 1000,
+      status: '就绪',
+      loading: false
+    });
 
-    // sampling target
-    this.sampleTarget = 1000;
-
-    // events
+    // Legacy event system (kept for backward compatibility during transition)
     this.events = new Map();
   }
 
+  // Legacy event API (kept for backward compatibility)
   on(evt, handler) {
     if (!this.events.has(evt)) this.events.set(evt, []);
     this.events.get(evt).push(handler);
@@ -31,6 +34,31 @@ export class ChartCore {
     const handlers = this.events.get(evt) || [];
     for (const h of handlers) h(payload);
   }
+
+  // Convenience getters for state access
+  get seriesList() { return this.state.get().seriesList; }
+  set seriesList(v) { this.state.set({ seriesList: v }); this._emit('seriesChanged', v); }
+  
+  get viewMinX() { return this.state.get().viewMinX; }
+  set viewMinX(v) { this.state.set({ viewMinX: v }); }
+  
+  get viewMaxX() { return this.state.get().viewMaxX; }
+  set viewMaxX(v) { this.state.set({ viewMaxX: v }); }
+  
+  get pinnedPoints() { return this.state.get().pinnedPoints; }
+  set pinnedPoints(v) { this.state.set({ pinnedPoints: v }); this._emit('pinnedChanged', v); }
+  
+  get originalViewSet() { return this.state.get().originalViewSet; }
+  set originalViewSet(v) { this.state.set({ originalViewSet: v }); }
+  
+  get originalViewMin() { return this.state.get().originalViewMin; }
+  set originalViewMin(v) { this.state.set({ originalViewMin: v }); }
+  
+  get originalViewMax() { return this.state.get().originalViewMax; }
+  set originalViewMax(v) { this.state.set({ originalViewMax: v }); }
+  
+  get sampleTarget() { return this.state.get().sampleTarget; }
+  set sampleTarget(v) { this.state.set({ sampleTarget: v }); }
 
   // Public API: set sample target
   setSampleTarget(n) {

@@ -54,6 +54,46 @@ function stripBOM(s) {
   return s;
 }
 
+/**
+ * Normalize time value to microseconds.
+ * - If string and valid date: parse as date and convert to microseconds
+ * - If numeric and abs < 1e13: treat as milliseconds, multiply by 1000
+ * - Otherwise: treat as microseconds
+ */
+function normalizeTimeToMicroseconds(val) {
+  // Try parsing as date string first
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    // Check if it looks like an ISO timestamp or date string
+    if (trimmed && /[TZ:-]/.test(trimmed)) {
+      const ms = Date.parse(trimmed);
+      if (isFinite(ms)) {
+        return Math.round(ms * 1000); // convert ms to microseconds
+      }
+    }
+    // If not a date, try parsing as number
+    const num = Number(trimmed);
+    if (isFinite(num)) {
+      val = num;
+    } else {
+      return NaN;
+    }
+  }
+  
+  // Handle numeric values
+  if (typeof val === 'number' && isFinite(val)) {
+    const abs = Math.abs(val);
+    // If value is small (< 1e13), treat as milliseconds
+    if (abs < 1e13) {
+      return Math.round(val * 1000); // ms to microseconds
+    }
+    // Otherwise treat as microseconds already
+    return Math.round(val);
+  }
+  
+  return NaN;
+}
+
 export async function parseCSVStream(file, onProgress) {
   const chunkSize = 1024 * 1024;
   let offset = 0, leftover = '';
@@ -78,8 +118,10 @@ export async function parseCSVStream(file, onProgress) {
       line = stripBOM(line.trim()); if (!line) continue;
       const parts = splitCSVLine(line, sep).map(s => s.trim());
       if (!firstLineChecked) {
-        const maybeNum = Number(parts[0]);
-        if (!isFinite(maybeNum)) {
+        // Try to parse first column - could be number or date string
+        const timeVal = normalizeTimeToMicroseconds(parts[0]);
+        if (!isFinite(timeVal)) {
+          // First column is not a valid time value, treat as header
           isHeader = true; headerCols = parts;
           const lower = headerCols.map(h => (h||'').toLowerCase());
           const timeCandidates = ['time','timestamp','ts','date','epoch','t','time_us','us','micro','microseconds'];
@@ -89,12 +131,17 @@ export async function parseCSVStream(file, onProgress) {
           if (foundTime !== null) timeIdx = foundTime;
           if (foundVal !== null) valueIdx = foundVal;
         } else {
+          // First column is valid time, not a header
           isHeader = false; timeIdx = 0; valueIdx = 1;
-          const x = Number(parts[timeIdx]), y = Number(parts[valueIdx]); if (isFinite(x) && isFinite(y)) points.push([x, y]);
+          const x = normalizeTimeToMicroseconds(parts[timeIdx]);
+          const y = Number(parts[valueIdx]); 
+          if (isFinite(x) && isFinite(y)) points.push([x, y]);
         }
         firstLineChecked = true;
       } else {
-        const x = Number(parts[timeIdx]), y = Number(parts[valueIdx]); if (isFinite(x) && isFinite(y)) points.push([x, y]);
+        const x = normalizeTimeToMicroseconds(parts[timeIdx]);
+        const y = Number(parts[valueIdx]); 
+        if (isFinite(x) && isFinite(y)) points.push([x, y]);
       }
     }
     if (onProgress) onProgress(Math.min(1, offset / file.size));
@@ -106,11 +153,18 @@ export async function parseCSVStream(file, onProgress) {
       const sep = detectSeparator(sampleLinesForDetect);
       const parts = splitCSVLine(line, sep).map(s => s.trim());
       if (!firstLineChecked) {
-        const maybeNum = Number(parts[0]);
-        if (!isFinite(maybeNum)) { isHeader = true; headerCols = parts; }
-        else { const x=Number(parts[0]), y=Number(parts[1]); if (isFinite(x) && isFinite(y)) points.push([x,y]); }
+        const timeVal = normalizeTimeToMicroseconds(parts[0]);
+        if (!isFinite(timeVal)) { 
+          isHeader = true; headerCols = parts; 
+        } else { 
+          const x = normalizeTimeToMicroseconds(parts[0]);
+          const y = Number(parts[1]); 
+          if (isFinite(x) && isFinite(y)) points.push([x, y]); 
+        }
       } else {
-        const x = Number(parts[timeIdx]), y = Number(parts[valueIdx]); if (isFinite(x) && isFinite(y)) points.push([x, y]);
+        const x = normalizeTimeToMicroseconds(parts[timeIdx]);
+        const y = Number(parts[valueIdx]); 
+        if (isFinite(x) && isFinite(y)) points.push([x, y]);
       }
     }
   }
@@ -131,8 +185,8 @@ export async function parseCSVText(text) {
     if (!line) continue;
     const parts = splitCSVLine(line, sep).map(s => s.trim());
     if (!firstLineChecked) {
-      const maybeNum = Number(parts[0]);
-      if (!isFinite(maybeNum)) {
+      const timeVal = normalizeTimeToMicroseconds(parts[0]);
+      if (!isFinite(timeVal)) {
         isHeader = true; headerCols = parts;
         const lower = headerCols.map(h => (h||'').toLowerCase());
         const timeCandidates = ['time','timestamp','ts','date','epoch','t','time_us','us','micro','microseconds'];
@@ -143,11 +197,15 @@ export async function parseCSVText(text) {
         if (foundVal !== null) valueIdx = foundVal;
       } else {
         isHeader = false; timeIdx = 0; valueIdx = 1;
-        const x = Number(parts[timeIdx]), y = Number(parts[valueIdx]); if (isFinite(x) && isFinite(y)) points.push([x, y]);
+        const x = normalizeTimeToMicroseconds(parts[timeIdx]);
+        const y = Number(parts[valueIdx]); 
+        if (isFinite(x) && isFinite(y)) points.push([x, y]);
       }
       firstLineChecked = true;
     } else {
-      const x = Number(parts[timeIdx]), y = Number(parts[valueIdx]); if (isFinite(x) && isFinite(y)) points.push([x, y]);
+      const x = normalizeTimeToMicroseconds(parts[timeIdx]);
+      const y = Number(parts[valueIdx]); 
+      if (isFinite(x) && isFinite(y)) points.push([x, y]);
     }
   }
   return { points, hasHeader: !!isHeader, headerCols, timeIdx, valueIdx };

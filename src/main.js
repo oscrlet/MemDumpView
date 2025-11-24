@@ -101,7 +101,7 @@ deleteSelectedBtn.addEventListener('click', () => {
 // wire sidebar
 sidebar.onOpenFile = async () => {
   const fi = document.createElement('input');
-  fi.type = 'file'; fi.accept = '.csv,text/csv,text/plain'; fi.multiple = true; fi.style.display = 'none';
+  fi.type = 'file'; fi.accept = '.csv,text/csv,text/plain,.json,application/json'; fi.multiple = true; fi.style.display = 'none';
   fi.addEventListener('change', async (ev) => {
     const files = Array.from(ev.target.files || []);
     if (files.length === 0) { setStatus('未选择文件'); return; }
@@ -205,7 +205,7 @@ let dragCounter = 0;
 const dropOverlay = document.createElement('div');
 dropOverlay.className = 'drop-overlay';
 dropOverlay.style.display = 'none';
-dropOverlay.innerHTML = `<div class="message">释放文件以上传（支持多个 CSV）</div>`;
+dropOverlay.innerHTML = `<div class="message">释放文件以上传（支持 CSV 和 JSON）</div>`;
 chartWrap.appendChild(dropOverlay);
 
 chartWrap.addEventListener('dragenter', (ev) => {

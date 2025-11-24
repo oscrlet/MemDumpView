@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "description": "Sample multi-series collection with mixed timestamp formats"
+  },
+  "series": [
+    {
+      "id": "series-1",
+      "name": "Memory Usage",
+      "data": [
+        [1000000, 100],
+        [2000000, 150],
+        {"x": "2024-01-01T10:00:03.000Z", "y": 200, "label": "Peak Load", "color": "#ff0000"},
+        [4000000, 180],
+        [5000000, 120]
+      ]
+    },
+    {
+      "name": "CPU Usage",
+      "data": [
+        {"x": 1500000000000, "y": 50},
+        {"x": 1500001000000, "y": 75},
+        {"x": "2024-01-01T10:00:02.000Z", "y": 90, "label": "CPU Spike"},
+        {"x": 1500003000000, "y": 60}
+      ]
+    }
+  ]
+}

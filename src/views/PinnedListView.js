@@ -14,10 +14,6 @@ export class PinnedListView {
   constructor(viewModel, container) {
     this.viewModel = viewModel;
     this.container = container;
-export class PinnedListView {
-  constructor(viewModel, container) {
-    this.viewModel = viewModel;
-    this.container = container;
     this.pinned = [];
     this.filter = '__all';
     this.groupBy = false;
@@ -30,13 +26,17 @@ export class PinnedListView {
     // track currently open menu so we can close it on rerender
     this._openMenu = null;
     this._openMenuDocHandler = null;
-    this._render();
     
     // Subscribe to viewModel state changes
     this.viewModel.subscribe((state) => {
       this.pinned = state.pinnedPoints;
       this._render();
     });
+    
+    // Initial render (if container is already set)
+    if (this.container) {
+      this._render();
+    }
   }
 
   setPinned(pins) { this.pinned = pins ? pins.slice() : []; this._render(); }
@@ -61,6 +61,9 @@ export class PinnedListView {
   _render() {
     // close any floating UI before re-rendering
     this._closeOpenMenu();
+
+    // Guard: skip rendering if container is not set
+    if (!this.container) return;
 
     this.container.innerHTML = '';
     let list = this.pinned.slice();

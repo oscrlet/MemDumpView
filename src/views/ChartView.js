@@ -498,11 +498,11 @@ export class ChartView {
     return sec * 1e6;
   }
 
-  // touch handlers (simplified) - unchanged behavior, but use core.resampleInView as needed
-  _onTouchStart(ev) { /* unchanged - omitted for brevity */ return this._onTouchStartImpl(ev); }
-  _onTouchMove(ev) { /* unchanged - omitted for brevity */ return this._onTouchMoveImpl(ev); }
-  _onTouchEnd(ev) { /* unchanged - omitted for brevity */ return this._onTouchEndImpl(ev); }
-  // (To keep patch compact the actual touch impls are preserved from previous version; in your local file ensure they call core.resampleInView() where appropriate.)
+  // touch handlers (simplified placeholder - not implemented in original)
+  // Touch support can be added in future if needed
+  _onTouchStart(ev) { /* Not implemented */ }
+  _onTouchMove(ev) { /* Not implemented */ }
+  _onTouchEnd(ev) { /* Not implemented */ }
 
   // ---------------- keyboard handling (exposed) ----------------
   handleKeyEvent(ev) {

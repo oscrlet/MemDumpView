@@ -53,8 +53,9 @@ export class ChartViewModel {
   }
 
   _onModelStateChange(modelState) {
-    // React to model changes if needed
-    // For now, just propagate through subscribe
+    // Hook for reacting to model changes
+    // Currently no additional processing needed as state is
+    // already propagated through subscribe mechanism
   }
 
   // ---------- Commands (user actions) ----------

@@ -62,7 +62,8 @@ function stripBOM(s) {
  * - Current epoch ms: ~1.7e12 (year 2024)
  * - Current epoch μs: ~1.7e15 (year 2024)
  * - 1e13 = 10,000,000,000,000 ms ≈ year 2286 (far future)
- * - So values >= 1e13 are safely microseconds
+ * - So values >= 1e13 are safely microseconds until year 2286
+ * This heuristic handles both absolute timestamps and relative small values
  * @param {number} rawX - Raw time value
  * @returns {number} - Time in microseconds
  */

@@ -25,11 +25,19 @@ export class PinnedListView {
 
   _closeOpenMenu() {
     if (this._openMenu && this._openMenu.el) {
-      try { this._openMenu.el.remove(); } catch (e) {}
+      try { 
+        this._openMenu.el.remove(); 
+      } catch (e) {
+        // Ignore errors if element already removed from DOM
+      }
       this._openMenu = null;
     }
     if (this._openMenuDocHandler) {
-      try { document.removeEventListener('click', this._openMenuDocHandler); } catch (e) {}
+      try { 
+        document.removeEventListener('click', this._openMenuDocHandler); 
+      } catch (e) {
+        // Ignore errors if listener not found
+      }
       this._openMenuDocHandler = null;
     }
   }

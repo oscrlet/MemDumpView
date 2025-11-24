@@ -266,6 +266,8 @@ window.addEventListener('keydown', (ev) => {
 chartModel.resampleInView();
 setStatus('就绪');
 
-// Export for backward compatibility (if needed by external scripts)
+// Export for backward compatibility during migration
+// TODO: Remove after validating MVVM refactoring in production
+// This allows legacy scripts to access chart functionality
 window.chart = chartModel;
 window.chart.exportPNG = chartView.exportPNG.bind(chartView);

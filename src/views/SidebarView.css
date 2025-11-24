@@ -1,0 +1,13 @@
+/* Sidebar specific styles, scoped to the Sidebar component */
+.sidebar .card-box { margin-bottom: 10px; }
+.sidebar-buttons { display:flex; flex-direction:column; gap:8px; }
+.sidebar .card-btn { background: transparent; border: none; display:flex; align-items:center; gap:8px; padding:10px; border-radius:10px; cursor:pointer; }
+.sidebar .card-btn .icon { width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; }
+.sidebar .card-btn:hover { background: var(--card-hover); box-shadow: var(--shadow-subtle); transform: translateY(-2px); }
+.legend { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+.legend-item { display:flex; gap:8px; align-items:center; padding:8px; border-radius:8px; cursor:pointer; }
+.legend-item.hidden { opacity: 0.45; }
+.legend-swatch { width:14px; height:14px; border-radius:3px; flex:0 0 14px; }
+.legend-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.legend-item.hover { transform: translateY(-3px); box-shadow: var(--shadow-subtle); }
+.small.series-count { margin-top: 8px; font-size:12px; color:var(--muted); }

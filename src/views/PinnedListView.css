@@ -1,0 +1,67 @@
+/* Styles scoped to the pinned list */
+.pinned-item {
+  display:flex;
+  gap:8px;
+  align-items:center;
+  padding:8px;
+  border-radius:8px;
+  cursor:pointer;
+  border: 1px solid rgba(15,36,80,0.03);
+  background: rgba(255,255,255,0.98);
+  margin-bottom: 6px;
+}
+.pinned-item.hidden { opacity: 0.45; } /* visually indicate a hidden pin */
+.pinned-item .meta { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; overflow:hidden; }
+.pinned-item .title { font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pinned-item .sub { font-size:12px; color:var(--muted); }
+.pinned-item.selected { background:linear-gradient(90deg, rgba(43,108,176,0.06), rgba(43,108,176,0.03)); box-shadow: 0 6px 18px rgba(43,108,176,0.06); border-left:3px solid var(--selected-accent); }
+.pinned-group-header { font-weight:700; margin-top:12px; margin-bottom:6px; color:var(--muted); font-size:13px; }
+
+/* menu button */
+.menu-btn {
+  width:28px;
+  height:28px;
+  border-radius:6px;
+  border:none;
+  background: transparent;
+  cursor: pointer;
+  flex:0 0 28px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:16px;
+  color:var(--muted);
+}
+.menu-btn:hover { background: var(--card-hover); box-shadow: var(--shadow-subtle); color:var(--text); }
+
+/* floating menu appended to body to allow overflow outside card */
+/* ensure menu will never exceed viewport and uses box-sizing for accurate measurement */
+.pin-menu {
+  background: var(--panel);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 10px 30px rgba(20,30,60,0.08);
+  border-radius: 8px;
+  min-width: 120px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  box-sizing: border-box;
+  font-size: 13px;
+  color: var(--text);
+  pointer-events: auto;
+}
+.pin-menu-item {
+  padding: 8px 10px;
+  border-radius:6px;
+  cursor:pointer;
+}
+.pin-menu-item:hover { background: var(--card-hover); }
+
+/* checkbox styling (minimal, align with layout) */
+.pin-checkbox {
+  width:18px;
+  height:18px;
+  flex:0 0 18px;
+  margin-right:6px;
+  cursor: pointer;
+  align-self: center;
+}

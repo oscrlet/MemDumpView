@@ -252,8 +252,8 @@ export class ChartViewModel {
   toggleSeriesVisibility(series) {
     series.visible = !series.visible;
     this.model.resampleInView();
-    // Trigger state update
-    this.model.seriesList = this.model.seriesList;
+    // Explicitly trigger state update for reactive updates
+    this.model.state.set({ seriesList: this.model.seriesList });
   }
 
   /**

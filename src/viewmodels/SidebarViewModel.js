@@ -156,8 +156,8 @@ export class SidebarViewModel {
   toggleSeries(series) {
     series.visible = !series.visible;
     this.model.resampleInView();
-    // Trigger update
-    this.model.seriesList = this.model.seriesList;
+    // Explicitly trigger state update for reactive updates
+    this.model.state.set({ seriesList: this.model.seriesList });
   }
 
   /**

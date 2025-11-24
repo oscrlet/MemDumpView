@@ -95,8 +95,8 @@ export class SidebarView {
       // click toggles visibility via provided callback (main app should set sidebar.legendClick)
       item.addEventListener('click', (ev) => {
         ev.stopPropagation();
-        item.style.opacity = (s.visible ? '0.45' : '1');
         this.legendClick(s);
+        // Note: opacity will be updated by updateLegend when state changes
       });
 
       // explicit hover highlight

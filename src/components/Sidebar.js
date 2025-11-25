@@ -1,16 +1,5 @@
 import { makeColors } from "../utils/lttb.js";
-
-function svgIcon(name) {
-  // small set of simple inline SVGs, fill uses currentColor
-  switch (name) {
-    case 'open': return `<svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 7a2 2 0 0 1 2-2h3l2 2h6a2 2 0 0 1 2 2v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    case 'png': return `<svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 12h10M7 8h10M7 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-    case 'csv': return `<svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-    case 'pinned': return `<svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v7M9 11l-3 9 6-4 6 4-3-9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    case 'clear': return `<svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18M8 6v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6M10 6V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    default: return '';
-  }
-}
+import sidebarTemplate from "../templates/sidebar.html?raw";
 
 export class Sidebar {
   constructor(container) {
@@ -30,24 +19,8 @@ export class Sidebar {
   }
 
   _render() {
-    this.el.innerHTML = `
-      <div class="box" aria-label="交互">
-        <strong>交互</strong>
-        <button id="openFile" class="card-btn"><span class="icon">${svgIcon('open')}</span><span>打开文件</span></button>
-        <button id="exportPng" class="card-btn"><span class="icon">${svgIcon('png')}</span><span>导出 PNG</span></button>
-        <button id="exportCsv" class="card-btn"><span class="icon">${svgIcon('csv')}</span><span>导出 CSV</span></button>
-        <button id="exportPinned" class="card-btn"><span class="icon">${svgIcon('pinned')}</span><span>导出 标记CSV</span></button>
-        <button id="clearAll" class="card-btn"><span class="icon">${svgIcon('clear')}</span><span>清除 所有</span></button>
-      </div>
-      <!-- stretch only the card-content inside this box so buttons / header won't be stretched -->
-      <div class="box stretch" aria-label="当前文件">
-        <div class="card-header"><strong>当前文件</strong></div>
-        <div class="card-content" style="padding-top:8px;">
-          <div id="legend" class="legend"></div>
-          <div class="small series-count" style="margin-top:8px">已加载: <span id="seriesCount">0</span></div>
-        </div>
-      </div>
-    `;
+    // use external template
+    this.el.innerHTML = sidebarTemplate;
     this._refs = {
       openFile: this.el.querySelector('#openFile'),
       exportPng: this.el.querySelector('#exportPng'),

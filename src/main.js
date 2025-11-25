@@ -3,6 +3,7 @@ import { ChartCore } from "./components/ChartCore.js";
 import { ChartUI } from "./components/ChartUI.js";
 import { PinnedList } from "./components/PinnedList.js";
 import { formatSeconds } from "./utils/format.js";
+import { dataModel } from "./models/DataModel.js";
 
 const app = document.getElementById('app');
 app.innerHTML = `
@@ -32,9 +33,9 @@ resetBtn.title = '重置视窗';
 resetBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 3v6h-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 chartWrap.appendChild(resetBtn);
 resetBtn.addEventListener('click', () => {
-  if (!chart.originalViewSet) { setStatus('尚未記錄初始視窗'); return; }
-  chart.viewMinX = chart.originalViewMin;
-  chart.viewMaxX = chart.originalViewMax;
+  if (!dataModel.originalViewSet) { setStatus('尚未記錄初始視窗'); return; }
+  dataModel.viewMinX = dataModel.originalViewMin;
+  dataModel.viewMaxX = dataModel.originalViewMax;
   chart.resampleInView();
   setStatus('视窗已重置');
 });
@@ -70,30 +71,30 @@ const selectAllBtn = pinnedListContainer.querySelector('#selectAllPinned');
 const deleteSelectedBtn = pinnedListContainer.querySelector('#deleteSelectedPinned');
 
 selectAllBtn.addEventListener('click', () => {
-  if (!chart.pinnedPoints || chart.pinnedPoints.length === 0) {
+  if (!dataModel.pinnedPoints || dataModel.pinnedPoints.length === 0) {
     setStatus('没有标记点可供选择');
     return;
   }
-  for (const p of chart.pinnedPoints) p.selected = true;
-  chart._emit('pinnedChanged', chart.pinnedPoints);
-  setStatus(`已全选 ${chart.pinnedPoints.length} 个标记`);
+  for (const p of dataModel.pinnedPoints) p.selected = true;
+  dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
+  setStatus(`已全选 ${dataModel.pinnedPoints.length} 个标记`);
 });
 
 deleteSelectedBtn.addEventListener('click', () => {
-  if (!chart.pinnedPoints || chart.pinnedPoints.length === 0) {
+  if (!dataModel.pinnedPoints || dataModel.pinnedPoints.length === 0) {
     setStatus('没有标记点可供删除');
     return;
   }
-  const toDelete = chart.pinnedPoints.filter(p => p.selected);
+  const toDelete = dataModel.pinnedPoints.filter(p => p.selected);
   if (toDelete.length === 0) {
     setStatus('未选中任何标记');
     return;
   }
   for (const p of toDelete) {
-    const idx = chart.pinnedPoints.indexOf(p);
-    if (idx >= 0) chart.pinnedPoints.splice(idx, 1);
+    const idx = dataModel.pinnedPoints.indexOf(p);
+    if (idx >= 0) dataModel.pinnedPoints.splice(idx, 1);
   }
-  chart._emit('pinnedChanged', chart.pinnedPoints);
+  dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
   setStatus(`已删除 ${toDelete.length} 个标记`);
 });
 
@@ -102,9 +103,6 @@ sidebar.onOpenFile = async () => {
   const fi = document.createElement('input');
   fi.type = 'file';
   // accept CSV and JSON files
-  fi.accept = '.csv,text/csv,text/plain,.json,application/json';
-  fi.multiple = true; fi.style.display = 'none';
-  // accept CSV and JSON
   fi.accept = '.csv,text/csv,text/plain,.json,application/json';
   fi.multiple = true; fi.style.display = 'none';
   fi.addEventListener('change', async (ev) => {
@@ -126,7 +124,7 @@ sidebar.onExportPNG = async () => {
 };
 sidebar.onExportCSV = () => {
   const arr = [];
-  for (const s of chart.seriesList) {
+  for (const s of dataModel.seriesList) {
     const arrPts = s.sampled && s.sampled.length ? s.sampled : s.rel;
     if (!arrPts) continue;
     for (const p of arrPts) arr.push(`${JSON.stringify(s.name)},${p[0]},${p[1]}`);
@@ -143,29 +141,29 @@ sidebar.onExportPinned = () => {
 sidebar.onClearAll = () => { chart.seriesList = []; chart.clearPinned(); chart.resampleInView(); sidebar.updateLegend([]); pinnedList.setPinned([]); setStatus('已清除所有序列及标记'); };
 sidebar.onTargetChange = (v) => { chart.setSampleTarget ? chart.setSampleTarget(v) : null; };
 sidebar.onAutoFit = () => { chart.resampleInView(); setStatus('已自动适配像素'); };
-sidebar.onZoomReset = () => { chart.viewMinX = 0; chart.viewMaxX = chart.computeGlobalExtents().max; chart.resampleInView(); setStatus('视窗已重置'); };
+sidebar.onZoomReset = () => { dataModel.viewMinX = 0; dataModel.viewMaxX = chart.computeGlobalExtents().max; chart.resampleInView(); setStatus('视窗已重置'); };
 sidebar.onResetOriginal = () => {
-  if (!chart.originalViewSet) { alert('尚未记录初始视窗'); return; }
-  chart.viewMinX = chart.originalViewMin; chart.viewMaxX = chart.originalViewMax; chart.resampleInView(); setStatus('已恢复到初始视窗');
+  if (!dataModel.originalViewSet) { alert('尚未记录初始视窗'); return; }
+  dataModel.viewMinX = dataModel.originalViewMin; dataModel.viewMaxX = dataModel.originalViewMax; chart.resampleInView(); setStatus('已恢复到初始视窗');
 };
-sidebar.onFitAll = () => { const ext = chart.computeGlobalExtents(); chart.viewMinX = 0; chart.viewMaxX = ext.max; chart.resampleInView(); setStatus('已适配所有数据'); };
+sidebar.onFitAll = () => { const ext = chart.computeGlobalExtents(); dataModel.viewMinX = 0; dataModel.viewMaxX = ext.max; chart.resampleInView(); setStatus('已适配所有数据'); };
 
 // ensure legend click toggles visibility
 sidebar.legendClick = (series) => {
   series.visible = !series.visible;
   chart.resampleInView();
-  sidebar.updateLegend(chart.seriesList);
+  sidebar.updateLegend(dataModel.seriesList);
   setStatus(`${series.name} 已${series.visible ? '显示' : '隐藏'}`);
 };
 
-// wire core events to UI
-chart.on('status', (msg) => setStatus(msg));
-chart.on('seriesChanged', (series) => sidebar.updateLegend(series));
-chart.on('pinnedChanged', (pins) => pinnedList.setPinned(pins));
-chart.on('resampled', () => {
-  // UI will re-render via core.on('resampled') inside ChartUI
+// wire model events to UI
+dataModel.on('status', (msg) => setStatus(msg));
+dataModel.on('seriesChanged', (series) => sidebar.updateLegend(series));
+dataModel.on('pinnedChanged', (pins) => pinnedList.setPinned(pins));
+dataModel.on('resampled', () => {
+  // UI will re-render via dataModel.on('resampled') inside ChartUI
 });
-chart.on('hover', (candidate) => {
+dataModel.on('hover', (candidate) => {
   if (!candidate) { tooltip.style.display = 'none'; return; }
   tooltip.style.display = 'block';
   tooltip.style.left = candidate.clientX + 'px';
@@ -189,12 +187,12 @@ pinnedList.onDelete = (p) => {
 // Selection: toggle p.selected (triggered by checkbox)
 pinnedList.onSelect = (p, ev) => {
   p.selected = !p.selected;
-  chart._emit('pinnedChanged', chart.pinnedPoints);
+  dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
 };
 // Row click: toggle the pin's hidden flag (hide/show the single pin)
 pinnedList.onHide = (p, ev) => {
   p.hidden = !p.hidden;
-  chart._emit('pinnedChanged', chart.pinnedPoints);
+  dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
   setStatus(`标记 ${p.seriesName} ${(p.relMicro/1e6).toFixed(3)}s 已${p.hidden ? '隐藏' : '显示'}`);
 };
 // NEW: rename handler — update pin label and propagate to source point if present
@@ -205,7 +203,7 @@ pinnedList.onRename = (p, newName) => {
   if (p.sourcePoint && typeof p.sourcePoint === 'object') {
     try { p.sourcePoint.label = label; } catch (e) { /* best-effort */ }
   }
-  chart._emit('pinnedChanged', chart.pinnedPoints);
+  dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
   setStatus('已重命名标记');
 };
 window.addEventListener('keydown', (ev) => ui.handleKeyEvent && ui.handleKeyEvent(ev), true);
@@ -242,7 +240,7 @@ chartWrap.addEventListener('drop', async (ev) => {
       if (f && f.size > 0) await chart.loadFile(f);
     }
     const ext = chart.computeGlobalExtents();
-    chart.viewMinX = 0; chart.viewMaxX = ext.max; chart.resampleInView();
+    dataModel.viewMinX = 0; dataModel.viewMaxX = ext.max; chart.resampleInView();
     setStatus('上传完成', false);
   } catch (err) {
     console.error('[drop] error', err);

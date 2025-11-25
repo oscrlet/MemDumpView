@@ -1,5 +1,6 @@
 import './PinnedList.css';
 import { formatSI, formatSeconds } from "../utils/format.js";
+import pinMenuTemplate from "../templates/pin-menu.html?raw";
 
 /**
  * PinnedList renders a list of pinned points.
@@ -135,10 +136,8 @@ export class PinnedList {
       menu.className = 'pin-menu';
       menu.style.position = 'absolute';
       menu.style.zIndex = 99999;
-      menu.innerHTML = `
-        <div class="pin-menu-item rename">重命名</div>
-        <div class="pin-menu-item delete">删除</div>
-      `;
+      // use external template
+      menu.innerHTML = pinMenuTemplate;
       // append first so we can measure size
       document.body.appendChild(menu);
 

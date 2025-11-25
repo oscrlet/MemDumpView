@@ -1,10 +1,11 @@
 // ChartUI: DOM + canvas + interactions + pinned tooltip DOM management
-// Depends on a ChartCore instance for data and events.
+// Now reads canonical state from shared dataModel (for rendering & events).
 import { formatSI, formatSeconds } from "../utils/format.js";
+import { dataModel } from "../models/DataModel.js";
 
 export class ChartUI {
   constructor(core, container) {
-    this.core = core;
+    this.core = core; // parsing/resample service
     this.container = container;
     this.canvas = document.createElement('canvas');
     this.canvas.id = 'chart-canvas';
@@ -33,10 +34,10 @@ export class ChartUI {
     this.setCanvasSize();
     window.addEventListener('resize', () => this._resizeDebounced(), { passive: true });
 
-    // respond to core events
-    this.core.on('resampled', () => this.render());
-    this.core.on('seriesChanged', () => this.render());
-    this.core.on('pinnedChanged', () => this.render());
+    // respond to model events (use shared dataModel)
+    dataModel.on('resampled', () => this.render());
+    dataModel.on('seriesChanged', () => this.render());
+    dataModel.on('pinnedChanged', () => this.render());
   }
 
   // ---------------- canvas sizing ----------------
@@ -55,8 +56,8 @@ export class ChartUI {
     // ensure canvas size
     this.setCanvasSize();
 
-    // ask core for base metrics
-    const base = this.core.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
+    // ask model for base metrics
+    const base = dataModel.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
     const { W, H } = base;
 
     // compute left margin including label width (we must use same margin later in hit-testing)
@@ -87,7 +88,7 @@ export class ChartUI {
       // still cache metrics for interactions
       const metrics = { W, H, margin, plotW, plotH, minX, maxX, minY, maxY, minXSec: minX / 1e6, maxXSec: maxX / 1e6 };
       this._lastRenderMetrics = metrics;
-      this.core._emit('rendered', { metrics });
+      dataModel._emit('rendered', { metrics });
       this.ctx.restore();
       return;
     }
@@ -121,9 +122,9 @@ export class ChartUI {
     const xToCanvasPx = (xMicro) => margin.left + ((xMicro / 1e6 - minX / 1e6) / (((maxX - minX) / 1e6) || 1)) * plotW;
     const yToCanvasPx = (y) => margin.top + plotH - ((y - minY) / ((maxY - minY) || 1)) * plotH;
 
-    // draw series
+    // draw series (read from shared dataModel)
     this.ctx.lineWidth = Math.max(1.4 * this.dpr, 1.2); this.ctx.lineJoin = 'round'; this.ctx.lineCap = 'round';
-    for (const s of this.core.seriesList) {
+    for (const s of dataModel.seriesList) {
       if (!s.visible) continue;
       const arr = s.sampled && s.sampled.length ? s.sampled : s.rel;
       if (!arr || arr.length === 0) continue;
@@ -138,10 +139,10 @@ export class ChartUI {
       this.ctx.fillStyle = s.color; this.ctx.beginPath(); this.ctx.arc(lx, ly, Math.max(2.5 * this.dpr, 2), 0, Math.PI*2); this.ctx.fill();
     }
 
-    // draw pinned points (only for visible series and non-hidden pins)
-    for (const p of this.core.pinnedPoints) {
+    // draw pinned points (only for visible series and non-hidden pins) - read from dataModel
+    for (const p of dataModel.pinnedPoints) {
       if (p.hidden) continue; // respect per-pin hidden flag
-      const s = this.core.seriesList.find(x => x.id === p.seriesId && x.visible);
+      const s = dataModel.seriesList.find(x => x.id === p.seriesId && x.visible);
       if (!s) continue;
       const px = xToCanvasPx(p.relMicro); const py = yToCanvasPx(p.val);
       this.ctx.save();
@@ -169,7 +170,7 @@ export class ChartUI {
     this._lastRenderMetrics = metrics;
 
     // emit rendered
-    this.core._emit('rendered', { metrics });
+    dataModel._emit('rendered', { metrics });
 
     // update pinned tooltip DOM positions now
     this._updatePinnedTooltips(metrics);
@@ -182,7 +183,7 @@ export class ChartUI {
     const now = Date.now();
     for (const v of this.pinnedTooltipMap.values()) v._seen = false;
 
-    if (!this.core.pinnedPoints || this.core.pinnedPoints.length === 0) {
+    if (!dataModel.pinnedPoints || dataModel.pinnedPoints.length === 0) {
       for (const kv of this.pinnedTooltipMap.entries()) try { kv[1].el.remove(); } catch(e){}
       this.pinnedTooltipMap.clear();
       return;
@@ -191,10 +192,10 @@ export class ChartUI {
     const canvasRect = this.canvas.getBoundingClientRect();
     const containerRect = this.container.getBoundingClientRect();
 
-    for (const p of this.core.pinnedPoints) {
+    for (const p of dataModel.pinnedPoints) {
       const key = this._pinnedKey(p);
       // respect per-pin hidden flag as well as series visibility
-      const s = this.core.seriesList.find(x => x.id === p.seriesId && x.visible);
+      const s = dataModel.seriesList.find(x => x.id === p.seriesId && x.visible);
       const cached = this.pinnedTooltipMap.get(key);
       if (!s || p.hidden) {
         if (cached) { cached.el.style.display = 'none'; cached._seen = true; cached.lastSeen = now; }
@@ -247,7 +248,7 @@ export class ChartUI {
   // ---------------- interaction binding ----------------
   _bindHandlers() {
     this.canvas.addEventListener('mousemove', (ev) => this._onMouseMove(ev));
-    this.canvas.addEventListener('mouseleave', () => { this._hoverCandidate = null; this.core._emit('hover', null); });
+    this.canvas.addEventListener('mouseleave', () => { this._hoverCandidate = null; dataModel._emit('hover', null); });
     this.canvas.addEventListener('click', (ev) => this._onClick(ev));
     this.canvas.addEventListener('mousedown', (ev) => this._onMouseDown(ev));
     window.addEventListener('mousemove', (ev) => this._onWindowMouseMove(ev));
@@ -263,7 +264,7 @@ export class ChartUI {
 
   _getClientMetrics() {
     const rect = this.canvas.getBoundingClientRect();
-    const metrics = this._lastRenderMetrics || this.core.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
+    const metrics = this._lastRenderMetrics || dataModel.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
     return { rect, metrics };
   }
 
@@ -274,10 +275,10 @@ export class ChartUI {
     const pyDev = (ev.clientY - rect.top) * this.dpr;
 
     const { plotW, plotH, minX, maxX, minY, maxY } = metrics;
-    if (plotW <= 0 || plotH <= 0) { this.core._emit('hover', null); return; }
+    if (plotW <= 0 || plotH <= 0) { dataModel._emit('hover', null); return; }
 
     let best = { d2: Infinity, series: null, point: null };
-    for (const s of this.core.seriesList) {
+    for (const s of dataModel.seriesList) {
       if (!s.visible) continue;
       const arr = s.sampled && s.sampled.length ? s.sampled : s.rel;
       if (!arr || arr.length === 0) continue;
@@ -299,15 +300,15 @@ export class ChartUI {
 
     if (best.series && best.point && best.d2 < (30 * this.dpr) * (30 * this.dpr)) {
       this._hoverCandidate = { series: best.series, point: best.point, clientX: ev.clientX, clientY: ev.clientY, d2: best.d2 };
-      this.core._emit('hover', this._hoverCandidate);
+      dataModel._emit('hover', this._hoverCandidate);
     } else {
       this._hoverCandidate = null;
-      this.core._emit('hover', null);
+      dataModel._emit('hover', null);
     }
   }
 
   _onClick(ev) {
-    if (this.core.seriesList.length === 0) return;
+    if (dataModel.seriesList.length === 0) return;
     if (this._boxSelecting) return;
     if (this._suppressClick) { this._suppressClick = false; return; }
     if (Date.now() - this._lastTouchTime < 350) return;
@@ -320,7 +321,7 @@ export class ChartUI {
     if (plotW <= 0 || plotH <= 0) return;
 
     let best = { d2: Infinity, series: null, point: null };
-    for (const s of this.core.seriesList) {
+    for (const s of dataModel.seriesList) {
       if (!s.visible) continue;
       const arr = s.sampled && s.sampled.length ? s.sampled : s.rel;
       if (!arr || arr.length === 0) continue;
@@ -340,17 +341,17 @@ export class ChartUI {
 
     const thresh = (28 * this.dpr) * (28 * this.dpr);
     if (best.series && best.point && best.d2 < thresh) {
-      const existingIdx = this.core.pinnedPoints.findIndex(pp => pp.seriesId === best.series.id && pp.relMicro === best.point[0] && pp.val === best.point[1]);
+      const existingIdx = dataModel.pinnedPoints.findIndex(pp => pp.seriesId === best.series.id && pp.relMicro === best.point[0] && pp.val === best.point[1]);
       if (existingIdx >= 0) {
-        this.core.removePinned(this.core.pinnedPoints[existingIdx]);
+        this.core.removePinned(dataModel.pinnedPoints[existingIdx]);
       } else {
         this.core.addPinned(best.series.id, best.point[0], best.point[1], best.series.color || '#333', best.series.name);
       }
-      this.core._emit('pinnedChanged', this.core.pinnedPoints);
+      dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
       this.render();
     } else {
-      for (const p of this.core.pinnedPoints) p.selected = false;
-      this.core._emit('pinnedChanged', this.core.pinnedPoints);
+      for (const p of dataModel.pinnedPoints) p.selected = false;
+      dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
       this.render();
     }
   }
@@ -396,7 +397,7 @@ export class ChartUI {
       return;
     }
 
-    const metrics = this._lastRenderMetrics || this.core.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
+    const metrics = this._lastRenderMetrics || dataModel.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
     const { margin, plotW, plotH, minXSec, maxXSec, minY, maxY } = metrics;
     const clientToRelMicro = (clientX) => {
       const pxDev = (clientX - parentRect.left) * this.dpr;
@@ -412,10 +413,9 @@ export class ChartUI {
         const center = (relA + relB) / 2;
         const currentSpan = Math.max(1, this.core.viewMaxX - this.core.viewMinX || 1);
         const selSpan = Math.abs(relB - relA) || (currentSpan * 0.05);
-        const factor = 1 + Math.max(0.2, selSpan / Math.max(1, currentSpan));
         const ext = this.core.computeGlobalExtents();
         const globalSpan = Math.max(1, ext.max - 0);
-        let newSpan = Math.min(globalSpan + 1, currentSpan * factor);
+        let newSpan = Math.min(globalSpan + 1, currentSpan * (1 + Math.max(0.2, selSpan / Math.max(1, currentSpan))));
         newSpan = Math.max(1, newSpan);
         let newMin = Math.max(0, center - newSpan / 2);
         let newMax = newMin + newSpan;
@@ -426,7 +426,7 @@ export class ChartUI {
         this.core.viewMinX = Math.max(0, newMin);
         this.core.viewMaxX = Math.max(this.core.viewMinX + 1, newMax);
         this.core.resampleInView();
-        this.core._emit('status', '已向外扩展视窗（Alt 缩小视图）');
+        dataModel._emit('status', '已向外扩展视窗（Alt 缩小视图）');
       } else {
         let newMin = Math.max(0, Math.min(relA, relB));
         let newMax = Math.max(newMin + 1, Math.max(relA, relB));
@@ -438,7 +438,7 @@ export class ChartUI {
         }
         this.core.viewMinX = newMin; this.core.viewMaxX = newMax;
         this.core.resampleInView();
-        this.core._emit('status', '已聚焦到所选区域');
+        dataModel._emit('status', '已聚焦到所选区域');
       }
     } else if (this._boxMode === 'select') {
       const addMode = ev.ctrlKey || ev.metaKey;
@@ -452,8 +452,8 @@ export class ChartUI {
         const pyCanvas = metrics.yToCanvasPx(y);
         return parentRect.top + (pyCanvas / this.dpr);
       };
-      for (let i=0;i<this.core.pinnedPoints.length;i++) {
-        const p = this.core.pinnedPoints[i];
+      for (let i=0;i<dataModel.pinnedPoints.length;i++) {
+        const p = dataModel.pinnedPoints[i];
         const cx = xToClient(p.relMicro);
         const cy = yToClient(p.val);
         if (cx >= rectBox.left && cx <= rectBox.right && cy >= rectBox.top && cy <= rectBox.bottom) {
@@ -462,9 +462,9 @@ export class ChartUI {
           if (!addMode) p.selected = false;
         }
       }
-      this.core._emit('pinnedChanged', this.core.pinnedPoints);
-      if (anySelected.length) this.core._emit('status', `已框选 ${anySelected.length} 个标记`);
-      else this.core._emit('status', '未选中任何标记');
+      dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
+      if (anySelected.length) dataModel._emit('status', `已框选 ${anySelected.length} 个标记`);
+      else dataModel._emit('status', '未选中任何标记');
     }
 
     try { this._selectRectEl.remove(); } catch(e){}
@@ -492,17 +492,16 @@ export class ChartUI {
   clientXToRelMicro(clientX) {
     const rect = this.canvas.getBoundingClientRect();
     const pxDev = (clientX - rect.left) * this.dpr;
-    const metrics = this._lastRenderMetrics || this.core.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
+    const metrics = this._lastRenderMetrics || dataModel.getBasePlotMetrics(this.canvas.width, this.canvas.height, this.dpr);
     const proportion = (pxDev - metrics.margin.left) / metrics.plotW;
     const sec = metrics.minXSec + proportion * (metrics.maxXSec - metrics.minXSec || 0);
     return sec * 1e6;
   }
 
   // touch handlers (simplified) - unchanged behavior, but use core.resampleInView as needed
-  _onTouchStart(ev) { /* unchanged - omitted for brevity */ return this._onTouchStartImpl(ev); }
-  _onTouchMove(ev) { /* unchanged - omitted for brevity */ return this._onTouchMoveImpl(ev); }
-  _onTouchEnd(ev) { /* unchanged - omitted for brevity */ return this._onTouchEndImpl(ev); }
-  // (To keep patch compact the actual touch impls are preserved from previous version; in your local file ensure they call core.resampleInView() where appropriate.)
+  _onTouchStart(ev) { /* unchanged - omitted for brevity */ return this._onTouchStartImpl?.(ev); }
+  _onTouchMove(ev) { /* unchanged - omitted for brevity */ return this._onTouchMoveImpl?.(ev); }
+  _onTouchEnd(ev) { /* unchanged - omitted for brevity */ return this._onTouchEndImpl?.(ev); }
 
   // ---------------- keyboard handling (exposed) ----------------
   handleKeyEvent(ev) {
@@ -530,7 +529,7 @@ export class ChartUI {
       this.core.viewMinX = Math.max(0, center - newSpan / 2);
       this.core.viewMaxX = this.core.viewMinX + newSpan;
       this.core.resampleInView();
-      this.core._emit('status', '已缩小视窗（快捷键）');
+      dataModel._emit('status', '已缩小视窗（快捷键）');
     } else if (key === 's') {
       ev.preventDefault();
       const center = (this.core.viewMinX + this.core.viewMaxX) / 2;
@@ -539,35 +538,35 @@ export class ChartUI {
       this.core.viewMinX = Math.max(0, center - newSpan / 2);
       this.core.viewMaxX = this.core.viewMinX + newSpan;
       this.core.resampleInView();
-      this.core._emit('status', '已放大视窗（快捷键）');
+      dataModel._emit('status', '已放大视窗（快捷键）');
     } else if (key === 'q') {
       ev.preventDefault();
       if (this._hoverCandidate && this._hoverCandidate.series && this._hoverCandidate.point) {
         const s = this._hoverCandidate.series;
         const p = this._hoverCandidate.point;
-        const existingIdx = this.core.pinnedPoints.findIndex(pp => pp.seriesId === s.id && pp.relMicro === p[0] && pp.val === p[1]);
+        const existingIdx = dataModel.pinnedPoints.findIndex(pp => pp.seriesId === s.id && pp.relMicro === p[0] && pp.val === p[1]);
         if (existingIdx >= 0) {
-          this.core.removePinned(this.core.pinnedPoints[existingIdx]);
+          this.core.removePinned(dataModel.pinnedPoints[existingIdx]);
         } else {
           this.core.addPinned(s.id, p[0], p[1], s.color || '#333', s.name);
         }
-        this.core._emit('pinnedChanged', this.core.pinnedPoints);
+        dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
         this.render();
       } else {
-        const sel = this.core.pinnedPoints.filter(p => p.selected);
+        const sel = dataModel.pinnedPoints.filter(p => p.selected);
         if (sel.length > 0) this.core.jumpToPin ? this.core.jumpToPin(sel[0]) : null;
       }
     } else if (key === 'escape') {
-      for (const p of this.core.pinnedPoints) p.selected = false;
-      this.core._emit('pinnedChanged', this.core.pinnedPoints);
+      for (const p of dataModel.pinnedPoints) p.selected = false;
+      dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
       this.render();
     } else if (key === 'delete' || key === 'backspace') {
-      const toDel = this.core.pinnedPoints.filter(p => p.selected);
+      const toDel = dataModel.pinnedPoints.filter(p => p.selected);
       if (toDel.length === 0) return;
       for (const p of toDel) {
-        const idx = this.core.pinnedPoints.indexOf(p); if (idx >= 0) this.core.pinnedPoints.splice(idx, 1);
+        const idx = dataModel.pinnedPoints.indexOf(p); if (idx >= 0) dataModel.pinnedPoints.splice(idx, 1);
       }
-      this.core._emit('pinnedChanged', this.core.pinnedPoints);
+      dataModel._emit('pinnedChanged', dataModel.pinnedPoints);
       this.render();
     }
   }

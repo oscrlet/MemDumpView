@@ -2,12 +2,28 @@ import { makeColorForLabel, largestTriangleThreeBuckets } from '../utils/lttb.js
 
 export class BaseItem {
   constructor({ label = '', hidden = false, color = undefined, meta = undefined } = {}) {
-    this.label = label;
+    this._label = label;
     this.hidden = hidden;
     this._color = color;
     this.meta = meta;
     this._key = Math.random().toString(36).slice(2, 9);
     this._listeners = {};
+  }
+
+  get label() {
+    return this._label;
+  }
+
+  set label(newLabel) {
+    const oldLabel = this._label;
+    this._label = newLabel;
+    if (oldLabel !== newLabel) {
+      this._emit('changed', 'label');
+      // 通知外部可能有 label 变动
+      if (typeof this._onLabelChange === 'function') {
+        this._onLabelChange(oldLabel, newLabel);
+      }
+    }
   }
 
   get color() {
@@ -60,6 +76,8 @@ export class NodeItem extends BaseItem {
     super(rest);
     this.x = x;
     this.y = y;
+    // 供绑定 Datamodel.pinnedList 用（实际赋值在 DataModel 构造时传入）
+    this._onLabelChange = null;
   }
 }
 
@@ -125,7 +143,6 @@ export class NodeRange {
 // 节点列表
 export class NodeList extends BaseList {
   constructor(nodes = []) {
-    // 1. 过滤非法 2. NodeItem化 3. 排序
     let range = new NodeRange();
     const sortedNodes = (nodes)
       .map(n => {
@@ -202,19 +219,66 @@ export class DataModel {
   constructor() {
     this.sequenceList = new SequenceList();
     this._listeners = {};
-    this.sequenceList.on('changed', e => this._emit('sequences:changed', e));
+    this.pinnedList = new NodeList(); // 新增
+    this._bindPinnedSync();
+
+    this.sequenceList.on('changed', e => {
+      this._emit('sequences:changed', e);
+      // 再次同步所有标签
+      this._syncAllPinned();
+    });
   }
 
   getSequences() {
     return this.sequenceList.getItems();
   }
 
+  getPinned() {
+    return this.pinnedList.getItems();
+  }
+
   addSequence(seq) {
     this.sequenceList.pushSequence(seq);
+    this._syncAllPinned();
   }
 
   clearSequences() {
     this.sequenceList.setItems([]);
+    this._syncAllPinned();
+  }
+
+  // --- pinned-list 相关 ---
+  _bindPinnedSync() {
+    // hook: 在节点的 label 变动时维护 pinnedList
+    this._syncAllPinned();
+  }
+
+  _syncAllPinned() {
+    // 先解绑全部原有（避免多次绑定）
+    // pinnedList彻底重建即可
+    const all = [];
+    this.sequenceList.getItems().forEach(seq => {
+      if (!seq.nodes) return;
+      seq.nodes.forEach(node => {
+        // 只给NodeItem绑定监听器
+        if (node instanceof NodeItem) {
+          node._onLabelChange = (oldLabel, newLabel) => {
+            if ((!oldLabel || oldLabel === '') && newLabel && newLabel !== '') {
+              // 加入pinned
+              if (!this.pinnedList.getItems().includes(node)) {
+                this.pinnedList.add(node);
+              }
+            } else if (oldLabel && oldLabel !== '' && (!newLabel || newLabel === '')) {
+              this.pinnedList.remove(node);
+            }
+          }
+        }
+        // 初始pinned收集
+        if (node.label && node.label !== '') all.push(node);
+      });
+    });
+    // 用 setItems 完全覆盖
+    this.pinnedList.setItems(all);
   }
 
   on(evt, fn) {
@@ -226,5 +290,4 @@ export class DataModel {
   }
 }
 
-// 单例暴露
 export const dataModel = new DataModel();
